@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ApnaGhar</string>
+    <string name="send_to_drafts">Send to Drafts</string>
+    <string name="media_shared_title">Shared Media (%1$d items)</string>
+    <string name="uploading_media">Saving media to drafts...</string>
+    <string name="upload_success">Media saved to Drafts successfully!</string>
+    <string name="upload_failed">Upload failed: %1$s</string>
+    <string name="no_media_selected">No media items selected</string>
+    <string name="shortcut_share_short">Share to ApnaGhar</string>
+    <string name="shortcut_share_long">Send media directly to ApnaGhar Drafts</string>
+    <string name="server_url_label">Server Address</string>
+    <string name="save_settings">Save Settings</string>
+</resources>
