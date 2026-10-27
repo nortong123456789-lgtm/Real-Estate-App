@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, MapPin, Search, User, PlusCircle, Home, X, Navigation, ArrowUpRight, SlidersHorizontal } from 'lucide-react';
+import { Mail, MapPin, Search, User, PlusCircle, Home, X, Navigation, SlidersHorizontal } from 'lucide-react';
 import { HeaderProps } from '@/types';
 
 interface SuggestionItem {
@@ -93,19 +93,8 @@ export default function Header({ draftsCount, onOpenDrafts, onSearchQuery }: Hea
 
   return (
     <header className="w-full flex-shrink-0 z-30 shadow-xs bg-white">
-      {/* Top Banner Promo Bar */}
-      <div className="bg-pink-50 border-b border-pink-100 text-slate-800 text-xs py-1.5 px-4 flex items-center justify-between font-medium">
-        <div className="flex items-center gap-2 max-w-7xl mx-auto w-full justify-between">
-          <span className="truncate">Use code <strong className="text-brand-500 font-bold">AIRPORT10</strong> for special discounts!</span>
-          <a href="#" className="bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-[11px] px-3 py-0.5 rounded-full flex items-center gap-1 shadow-2xs transition-all">
-            <span>Explore now</span>
-            <ArrowUpRight className="w-3 h-3" />
-          </a>
-        </div>
-      </div>
-
       {/* Main Navigation Bar */}
-      <div className="px-4 sm:px-8 py-3 border-b border-slate-100 flex items-center justify-between gap-3 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-8 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3 max-w-7xl mx-auto">
         {/* Brand Logo - ApnaGhar / Living Spaces */}
         <div className="flex items-center gap-2.5 cursor-pointer flex-shrink-0">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center font-black text-xl shadow-md shadow-brand-500/20">
@@ -132,7 +121,7 @@ export default function Header({ draftsCount, onOpenDrafts, onSearchQuery }: Hea
                   onFocus={() => {
                     if (suggestions.length > 0) setShowDropdown(true);
                   }}
-                  placeholder="Where to? Search • Locations • Properties"
+                  placeholder="Where to? Search • Locations • Apartments"
                   className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-500 truncate"
                 />
               </div>

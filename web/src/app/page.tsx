@@ -139,15 +139,15 @@ export default function DashboardPage(): React.JSX.Element {
         <div className="max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-1.5 bg-pink-100/80 text-brand-600 px-3.5 py-1 rounded-full text-[11px] font-black tracking-wider uppercase">
             <Sparkles className="w-3.5 h-3.5 text-brand-500" />
-            <span>Premium Service Apartments · Bengaluru</span>
+            <span>Premium Apartments for Rent & Sale · Bengaluru</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight font-serif">
-            Stay in Comfort, <span className="text-brand-500">Stay with Us.</span>
+            Stay in Comfort, <span className="text-brand-500">Live with Us.</span>
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-xl mx-auto leading-relaxed">
-            Modern service apartments designed for business & leisure — book your perfect urban retreat in minutes.
+            Modern apartments & homes designed for business, living & investment — find your perfect property in minutes.
           </p>
         </div>
       </section>
