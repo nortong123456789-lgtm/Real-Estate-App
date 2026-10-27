@@ -8,7 +8,7 @@ import MapComponent from '@/components/MapComponent';
 import DraftsList from '@/components/DraftsList';
 import PropertyCard from '@/components/PropertyCard';
 import DraftCompletionForm from '@/components/DraftCompletionForm';
-import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles } from 'lucide-react';
+import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
@@ -172,8 +172,8 @@ export default function DashboardPage(): React.JSX.Element {
           style={{ width: '100%', minHeight: '500px' }}
         >
           {currentView === 'properties' ? (
-            /* Featured Listings Grid View */
-            <div className="space-y-4">
+            /* Horizontal Swipeable Property Carousel View */
+            <div className="space-y-4 relative">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-brand-500 font-extrabold text-[10px] uppercase tracking-wider bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-100">
@@ -211,14 +211,47 @@ export default function DashboardPage(): React.JSX.Element {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-                  {filteredListings.map((listing) => (
-                    <PropertyCard
-                      key={listing.id}
-                      listing={listing}
-                      onSelect={handleSelectProperty}
-                    />
-                  ))}
+                <div className="relative group">
+                  {/* Arrow Navigation Buttons (Desktop) */}
+                  {filteredListings.length > 1 && (
+                    <div className="hidden sm:flex items-center gap-2 absolute -top-12 right-0 z-10">
+                      <button
+                        onClick={() => {
+                          const container = document.getElementById('property-carousel-container');
+                          if (container) container.scrollBy({ left: -340, behavior: 'smooth' });
+                        }}
+                        className="p-2 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-xs transition-all"
+                        title="Previous Property"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const container = document.getElementById('property-carousel-container');
+                          if (container) container.scrollBy({ left: 340, behavior: 'smooth' });
+                        }}
+                        className="p-2 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-xs transition-all"
+                        title="Next Property"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Swipeable Horizontal Property Carousel */}
+                  <div
+                    id="property-carousel-container"
+                    className="flex gap-4 sm:gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-4 pt-1 px-1 scroll-smooth"
+                  >
+                    {filteredListings.map((listing) => (
+                      <div key={listing.id} className="w-[84vw] sm:w-[320px] md:w-[350px] flex-shrink-0 snap-start">
+                        <PropertyCard
+                          listing={listing}
+                          onSelect={handleSelectProperty}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
