@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Listing } from '@/types';
-import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight } from 'lucide-react';
 import { getMediaProxyUrl } from '@/lib/api';
 
 interface MapComponentProps {
@@ -46,6 +46,11 @@ export default function MapComponent({
   const currentCenter = mapCenter || (selectedListing?.latitude && selectedListing?.longitude
     ? { lat: selectedListing.latitude, lng: selectedListing.longitude }
     : BENGALURU_DEFAULT_CENTER);
+
+  // Dynamic OpenStreetMap Bounding Box around current search/pin location
+  const delta = 0.035;
+  const osmBbox = `${currentCenter.lng - delta},${currentCenter.lat - delta},${currentCenter.lng + delta},${currentCenter.lat + delta}`;
+  const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${osmBbox}&layer=mapnik&marker=${currentCenter.lat},${currentCenter.lng}`;
 
   // Calculate nearby listings sorted by spatial distance
   const nearbyListings = (selectedListing?.latitude && selectedListing?.longitude)
@@ -144,14 +149,15 @@ export default function MapComponent({
             </Map>
           </APIProvider>
         ) : (
-          /* Free Interactive OpenStreetMap Canvas */
+          /* Free Dynamic Interactive OpenStreetMap Canvas with Dynamic Bounding Box */
           <iframe
+            key={`${currentCenter.lat}-${currentCenter.lng}`}
             title="Bengaluru Property Map"
             width="100%"
             height="100%"
             style={{ border: 0, minHeight: '450px', width: '100%' }}
             loading="lazy"
-            src={`https://www.openstreetmap.org/export/embed.html?bbox=77.45,12.82,77.75,13.12&layer=mapnik&marker=${currentCenter.lat},${currentCenter.lng}`}
+            src={osmEmbedUrl}
           />
         )}
       </div>
