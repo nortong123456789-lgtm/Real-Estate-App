@@ -3,15 +3,28 @@
 import React from 'react';
 import { Listing } from '@/types';
 import { getMediaProxyUrl } from '@/lib/api';
-import { MapPin, Camera, Sparkles, Flame } from 'lucide-react';
+import { MapPin, Camera, Flame } from 'lucide-react';
 
 interface PropertyCardProps {
   listing: Listing;
   onSelect?: (listing: Listing) => void;
 }
 
+// Safe Price Formatter for iOS Safari
+function formatPrice(amount?: number | string | null): string {
+  if (!amount) return '25,000';
+  const num = typeof amount === 'number' ? amount : parseFloat(String(amount));
+  if (isNaN(num)) return '25,000';
+  try {
+    return num.toLocaleString('en-IN');
+  } catch (e) {
+    return String(num);
+  }
+}
+
 export default function PropertyCard({ listing, onSelect }: PropertyCardProps) {
-  const primaryMedia = listing.media_files[0];
+  const mediaFiles = listing.media_files || [];
+  const primaryMedia = mediaFiles[0];
   const mediaUrl = primaryMedia ? getMediaProxyUrl(primaryMedia) : null;
 
   return (
@@ -46,10 +59,10 @@ export default function PropertyCard({ listing, onSelect }: PropertyCardProps) {
         </div>
 
         {/* Media Counter Badge */}
-        {listing.media_files.length > 0 && (
+        {mediaFiles.length > 0 && (
           <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1">
             <Camera className="w-3 h-3 text-brand-500" />
-            <span>{listing.media_files.length} Photos</span>
+            <span>{mediaFiles.length} Photos</span>
           </div>
         )}
 
@@ -74,7 +87,7 @@ export default function PropertyCard({ listing, onSelect }: PropertyCardProps) {
           <div className="flex items-center gap-1 text-slate-500 text-xs font-semibold mt-1">
             <MapPin className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
             <span className="truncate">
-              {listing.latitude && listing.longitude
+              {typeof listing.latitude === 'number' && typeof listing.longitude === 'number'
                 ? `Location (${listing.latitude.toFixed(3)}, ${listing.longitude.toFixed(3)})`
                 : 'Bengaluru, Karnataka'}
             </span>
@@ -90,7 +103,7 @@ export default function PropertyCard({ listing, onSelect }: PropertyCardProps) {
         <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
           <div className="flex items-baseline gap-1">
             <span className="text-brand-500 font-black text-xl sm:text-2xl">
-              ₹{listing.rent_amount ? listing.rent_amount.toLocaleString('en-IN') : '25,000'}
+              ₹{formatPrice(listing.rent_amount)}
             </span>
             <span className="text-xs font-bold text-slate-400">/ month</span>
           </div>

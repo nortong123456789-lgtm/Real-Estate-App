@@ -17,6 +17,18 @@ interface MapComponentProps {
 
 const BENGALURU_DEFAULT_CENTER = { lat: 12.9716, lng: 77.5946 };
 
+// Safe Price Formatter for iOS Safari
+function formatPrice(amount?: number | string | null): string {
+  if (!amount) return '25,000';
+  const num = typeof amount === 'number' ? amount : parseFloat(String(amount));
+  if (isNaN(num)) return '25,000';
+  try {
+    return num.toLocaleString('en-IN');
+  } catch (e) {
+    return String(num);
+  }
+}
+
 // Haversine Distance Formula in Kilometers
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth radius in km
@@ -33,7 +45,7 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 export default function MapComponent({
-  activeListings,
+  activeListings = [],
   selectedCoords,
   mapCenter,
   onMapClick,
@@ -44,7 +56,7 @@ export default function MapComponent({
   const [forceOsmFallback, setForceOsmFallback] = useState<boolean>(false);
 
   const currentCenter = mapCenter || (selectedListing?.latitude && selectedListing?.longitude
-    ? { lat: selectedListing.latitude, lng: selectedListing.longitude }
+    ? { lat: Number(selectedListing.latitude), lng: Number(selectedListing.longitude) }
     : BENGALURU_DEFAULT_CENTER);
 
   // Dynamic OpenStreetMap Bounding Box around current search/pin location
@@ -58,7 +70,7 @@ export default function MapComponent({
         .map((item) => ({
           ...item,
           distanceKm: (item.latitude && item.longitude)
-            ? calculateDistanceKm(selectedListing.latitude!, selectedListing.longitude!, item.latitude, item.longitude)
+            ? calculateDistanceKm(Number(selectedListing.latitude!), Number(selectedListing.longitude!), Number(item.latitude), Number(item.longitude))
             : 999
         }))
         .sort((a, b) => a.distanceKm - b.distanceKm)
@@ -115,7 +127,7 @@ export default function MapComponent({
             >
               {/* Active Property Pins in Coral Brand Color */}
               {activeListings.map((listing) => (
-                listing.latitude && listing.longitude ? (
+                (typeof listing.latitude === 'number' && typeof listing.longitude === 'number') ? (
                   <Marker
                     key={listing.id}
                     position={{ lat: listing.latitude, lng: listing.longitude }}
@@ -133,7 +145,7 @@ export default function MapComponent({
               ))}
 
               {/* Draft Target Selected Pin */}
-              {selectedCoords && (
+              {selectedCoords && typeof selectedCoords.lat === 'number' && typeof selectedCoords.lng === 'number' && (
                 <Marker
                   position={selectedCoords}
                   icon={{
@@ -146,10 +158,49 @@ export default function MapComponent({
                   }}
                 />
               )}
+
+              {/* Info Window for Selected Active Listing with iOS Safety Guards */}
+              {selectedListing && typeof selectedListing.latitude === 'number' && typeof selectedListing.longitude === 'number' && (
+                <InfoWindow
+                  position={{ lat: selectedListing.latitude, lng: selectedListing.longitude }}
+                  onCloseClick={() => setSelectedListing(null)}
+                >
+                  <div className="p-1 max-w-[220px] md:max-w-xs font-sans">
+                    {selectedListing.media_files?.[0] && (
+                      <img
+                        src={getMediaProxyUrl(selectedListing.media_files[0])}
+                        alt="Property"
+                        className="w-full h-24 object-cover rounded-xl mb-2"
+                      />
+                    )}
+                    <div className="flex items-center gap-1.5 text-brand-500 font-bold text-sm mb-1">
+                      <Building className="w-4 h-4" />
+                      <span>{selectedListing.configuration || 'Property Listing'}</span>
+                    </div>
+                    <div className="text-lg font-black text-slate-900 mb-1">
+                      ₹{formatPrice(selectedListing.rent_amount)}/mo
+                    </div>
+                    <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{selectedListing.configuration || 'Bengaluru'}</span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (onSelectListing) onSelectListing(selectedListing);
+                      }}
+                      className="w-full mt-2 py-2 px-3 bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <span>View Details</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </InfoWindow>
+              )}
             </Map>
           </APIProvider>
         ) : (
-          /* Free Dynamic Interactive OpenStreetMap Canvas with Dynamic Bounding Box */
+          /* Free Dynamic Interactive OpenStreetMap Canvas */
           <iframe
             key={`${currentCenter.lat}-${currentCenter.lng}`}
             title="Bengaluru Property Map"
@@ -171,7 +222,7 @@ export default function MapComponent({
               <div className="flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-extrabold text-slate-900">
-                  Nearby Properties in {selectedListing.configuration || 'Bengaluru'}
+                  Nearby Properties
                 </h3>
                 <span className="bg-brand-50 text-brand-600 text-[10px] font-extrabold px-2 py-0.5 rounded-md border border-brand-100">
                   {nearbyListings.length} Nearby
@@ -190,7 +241,7 @@ export default function MapComponent({
             <div className="flex gap-3.5 overflow-x-auto pb-1 scrollbar-thin">
               {nearbyListings.map((item) => {
                 const isSelected = item.id === selectedListing.id;
-                const mediaUrl = item.media_files[0] ? getMediaProxyUrl(item.media_files[0]) : null;
+                const mediaUrl = item.media_files?.[0] ? getMediaProxyUrl(item.media_files[0]) : null;
 
                 return (
                   <div
@@ -222,18 +273,10 @@ export default function MapComponent({
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <div className="text-brand-500 font-black text-sm">
-                          ₹{item.rent_amount?.toLocaleString('en-IN') || '25,000'}/mo
+                          ₹{formatPrice(item.rent_amount)}/mo
                         </div>
                         <div className="text-xs font-bold text-slate-800 line-clamp-1 mt-0.5">
                           {item.configuration || '2 BHK Apartment'}
-                        </div>
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 line-clamp-1">
-                          <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                          <span>
-                            {item.latitude && item.longitude
-                              ? `Location (${item.latitude.toFixed(2)}, ${item.longitude.toFixed(2)})`
-                              : 'Bengaluru'}
-                          </span>
                         </div>
                       </div>
 
