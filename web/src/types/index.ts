@@ -16,6 +16,7 @@ export interface Listing {
   neighborhood?: string;
   latitude?: number;
   longitude?: number;
+  distanceKm?: number;
   media_files: MediaFile[];
   created_at: string;
 }
