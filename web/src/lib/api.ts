@@ -1,6 +1,6 @@
 import { Listing, MediaFile, DraftUpdatePayload } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export function getMediaProxyUrl(media?: MediaFile): string {
   if (!media) return '';
