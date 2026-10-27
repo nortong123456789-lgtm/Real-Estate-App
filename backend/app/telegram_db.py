@@ -176,9 +176,10 @@ class TelegramDBManager:
             "status": "draft",
             "configuration": None,
             "rent_amount": None,
-            "neighborhood": None,
             "latitude": None,
             "longitude": None,
+            "description": None,
+            "admin_notes": None,
             "media_files": initial_media_files,
             "created_at": now_str,
             "updated_at": now_str
@@ -270,9 +271,10 @@ class TelegramDBManager:
                 "status": "draft",
                 "configuration": None,
                 "rent_amount": None,
-                "neighborhood": None,
                 "latitude": None,
                 "longitude": None,
+                "description": None,
+                "admin_notes": None,
                 "media_files": uploaded_media_files,
                 "created_at": now_str,
                 "updated_at": now_str

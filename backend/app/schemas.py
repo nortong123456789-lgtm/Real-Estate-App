@@ -19,16 +19,18 @@ class ListingResponse(BaseModel):
     status: str
     configuration: Optional[str] = None
     rent_amount: Optional[float] = None
-    neighborhood: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    description: Optional[str] = None
+    admin_notes: Optional[str] = None
     media_files: List[MediaFileSchema] = []
     created_at: str
 
 class ListingUpdate(BaseModel):
     configuration: Optional[str] = None
     rent_amount: Optional[float] = None
-    neighborhood: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    description: Optional[str] = None
+    admin_notes: Optional[str] = None
     status: Optional[str] = "active"

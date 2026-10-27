@@ -117,9 +117,9 @@ export default function DashboardPage(): React.JSX.Element {
   const filteredListings = activeListings.filter((item) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const neighborhoodMatch = item.neighborhood?.toLowerCase().includes(q) ?? false;
     const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
-    return neighborhoodMatch || configMatch;
+    const descMatch = item.description?.toLowerCase().includes(q) ?? false;
+    return configMatch || descMatch;
   });
 
   return (

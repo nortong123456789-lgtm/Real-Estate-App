@@ -37,11 +37,11 @@ export default function PropertyCard({ listing, onSelect }: PropertyCardProps) {
         {/* Top Badges Column */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start z-10">
           <div className="bg-brand-500 text-white text-[10px] font-extrabold px-3 py-1 rounded-full shadow-md">
-            Featured Deal
+            Featured
           </div>
           <div className="bg-amber-400 text-slate-900 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
             <Flame className="w-3 h-3 text-slate-900 fill-slate-900" />
-            <span>10% OFF</span>
+            <span>Verified Property</span>
           </div>
         </div>
 
@@ -67,14 +67,23 @@ export default function PropertyCard({ listing, onSelect }: PropertyCardProps) {
         <div>
           {/* Property Title */}
           <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-brand-500 transition-colors line-clamp-1">
-            ApnaGhar {listing.configuration || '2BHK'} - {listing.neighborhood || 'Bengaluru'}
+            ApnaGhar {listing.configuration || '2 BHK Apartment'}
           </h3>
 
           {/* Location Tag */}
           <div className="flex items-center gap-1 text-slate-500 text-xs font-semibold mt-1">
             <MapPin className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-            <span className="truncate">{listing.neighborhood || 'Electronic City Phase 1, Bengaluru'}</span>
+            <span className="truncate">
+              {listing.latitude && listing.longitude
+                ? `Location (${listing.latitude.toFixed(3)}, ${listing.longitude.toFixed(3)})`
+                : 'Bengaluru, Karnataka'}
+            </span>
           </div>
+
+          {/* Public Description Preview */}
+          <p className="text-xs text-slate-500 line-clamp-2 mt-2 leading-relaxed font-normal">
+            {listing.description || 'Modern spacious property with power backup, modular kitchen, and great accessibility.'}
+          </p>
         </div>
 
         {/* Price Tag Row */}

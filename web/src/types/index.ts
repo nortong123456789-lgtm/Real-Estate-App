@@ -13,9 +13,10 @@ export interface Listing {
   status: ListingStatus;
   configuration?: string;
   rent_amount?: number;
-  neighborhood?: string;
   latitude?: number;
   longitude?: number;
+  description?: string;
+  admin_notes?: string;
   distanceKm?: number;
   media_files: MediaFile[];
   created_at: string;
@@ -24,9 +25,10 @@ export interface Listing {
 export interface DraftUpdatePayload {
   configuration: string;
   rent_amount: number;
-  neighborhood: string;
   latitude: number;
   longitude: number;
+  description?: string;
+  admin_notes?: string;
   status?: ListingStatus;
 }
 
