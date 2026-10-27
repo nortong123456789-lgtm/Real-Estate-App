@@ -171,7 +171,7 @@ export default function MapComponent({
               <div className="flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-extrabold text-slate-900">
-                  Nearby Properties in {selectedListing.neighborhood || 'Area'}
+                  Nearby Properties in {selectedListing.configuration || 'Bengaluru'}
                 </h3>
                 <span className="bg-brand-50 text-brand-600 text-[10px] font-extrabold px-2 py-0.5 rounded-md border border-brand-100">
                   {nearbyListings.length} Nearby
@@ -225,11 +225,15 @@ export default function MapComponent({
                           ₹{item.rent_amount?.toLocaleString('en-IN') || '25,000'}/mo
                         </div>
                         <div className="text-xs font-bold text-slate-800 line-clamp-1 mt-0.5">
-                          {item.configuration || '2 BHK'} Apartment
+                          {item.configuration || '2 BHK Apartment'}
                         </div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 line-clamp-1">
                           <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                          <span>{item.neighborhood || 'Bengaluru'}</span>
+                          <span>
+                            {item.latitude && item.longitude
+                              ? `Location (${item.latitude.toFixed(2)}, ${item.longitude.toFixed(2)})`
+                              : 'Bengaluru'}
+                          </span>
                         </div>
                       </div>
 
