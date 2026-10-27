@@ -123,7 +123,7 @@ export default function DashboardPage(): React.JSX.Element {
   });
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans overflow-x-hidden pb-24 md:pb-8">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans overflow-x-hidden pb-20 md:pb-8">
       {/* Header Bar */}
       <Header
         draftsCount={drafts.length}
@@ -134,26 +134,22 @@ export default function DashboardPage(): React.JSX.Element {
         onSearchQuery={handleSearchQuery}
       />
 
-      {/* Hero Section matching ANI Living Spaces Reference */}
-      <section className="bg-gradient-to-b from-white to-pink-50/30 border-b border-pink-100/50 py-8 px-4 sm:px-8 text-center relative overflow-hidden">
-        <div className="max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-1.5 bg-pink-100/80 text-brand-600 px-3.5 py-1 rounded-full text-[11px] font-black tracking-wider uppercase">
-            <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+      {/* Ultra-Compact Mobile-Optimized Hero Section */}
+      <section className="bg-gradient-to-b from-white to-pink-50/20 border-b border-pink-100/40 py-3 sm:py-4 px-3 sm:px-6 text-center relative overflow-hidden">
+        <div className="max-w-2xl mx-auto space-y-1.5">
+          <div className="inline-flex items-center gap-1 bg-pink-100/70 text-brand-600 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase">
+            <Sparkles className="w-3 h-3 text-brand-500" />
             <span>Premium Apartments for Rent & Sale · Bengaluru</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight font-serif">
-            Stay in Comfort, <span className="text-brand-500">Live with Us.</span>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-snug font-serif">
+            Stay in Comfort, <span className="text-brand-500">Live with Style.</span>
           </h1>
-
-          <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-xl mx-auto leading-relaxed">
-            Modern apartments & homes designed for business, living & investment — find your perfect property in minutes.
-          </p>
         </div>
       </section>
 
       {/* Main Content Workspace */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-2.5 sm:p-5 md:p-6 flex flex-col md:flex-row gap-4 sm:gap-6">
         {/* Left Column: Drafts Queue (Desktop Sidebar) */}
         <div
           className={`w-full md:w-80 lg:w-96 flex-shrink-0 ${
@@ -168,33 +164,33 @@ export default function DashboardPage(): React.JSX.Element {
 
         {/* Right Column: Main Content (Listings Grid OR Vector Map) */}
         <div
-          className="flex-1 flex flex-col min-h-[500px] w-full"
-          style={{ width: '100%', minHeight: '500px' }}
+          className="flex-1 flex flex-col min-h-[480px] w-full"
+          style={{ width: '100%', minHeight: '480px' }}
         >
           {currentView === 'properties' ? (
             /* Horizontal Swipeable Property Carousel View */
-            <div className="space-y-4 relative">
+            <div className="space-y-3 relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-brand-500 font-extrabold text-[10px] uppercase tracking-wider bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-100">
+                  <span className="text-brand-500 font-extrabold text-[9px] uppercase tracking-wider bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
                     OUR BUILDINGS
                   </span>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
                     Prime locations across Bengaluru
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => loadData(true)}
-                    className="p-2 text-slate-500 hover:text-slate-900 bg-white rounded-full border border-slate-200 transition-colors shadow-2xs"
+                    className="p-1.5 text-slate-500 hover:text-slate-900 bg-white rounded-full border border-slate-200 transition-colors shadow-2xs"
                     title="Refresh Data"
                   >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-500' : ''}`} />
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-brand-500' : ''}`} />
                   </button>
                   <button
                     onClick={() => setCurrentView('map')}
-                    className="bg-brand-50 text-brand-600 hover:bg-brand-500 hover:text-white font-extrabold text-xs px-3.5 py-2 rounded-full border border-brand-100 transition-all shadow-2xs flex items-center gap-1.5"
+                    className="bg-brand-50 text-brand-600 hover:bg-brand-500 hover:text-white font-extrabold text-[11px] px-3 py-1.5 rounded-full border border-brand-100 transition-all shadow-2xs flex items-center gap-1"
                   >
                     <MapPin className="w-3.5 h-3.5" />
                     <span>Map View</span>
@@ -203,9 +199,9 @@ export default function DashboardPage(): React.JSX.Element {
               </div>
 
               {filteredListings.length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 shadow-xs">
-                  <Building className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                  <p className="text-base font-bold text-slate-800">No active listings match your search</p>
+                <div className="bg-white rounded-3xl p-8 text-center border border-slate-100 text-slate-400 shadow-xs">
+                  <Building className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-sm font-bold text-slate-800">No active listings match your search</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                     Select a draft from the sidebar to set location and publish live!
                   </p>
@@ -214,13 +210,13 @@ export default function DashboardPage(): React.JSX.Element {
                 <div className="relative group">
                   {/* Arrow Navigation Buttons (Desktop) */}
                   {filteredListings.length > 1 && (
-                    <div className="hidden sm:flex items-center gap-2 absolute -top-12 right-0 z-10">
+                    <div className="hidden sm:flex items-center gap-1.5 absolute -top-10 right-0 z-10">
                       <button
                         onClick={() => {
                           const container = document.getElementById('property-carousel-container');
-                          if (container) container.scrollBy({ left: -340, behavior: 'smooth' });
+                          if (container) container.scrollBy({ left: -320, behavior: 'smooth' });
                         }}
-                        className="p-2 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-xs transition-all"
+                        className="p-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-2xs transition-all"
                         title="Previous Property"
                       >
                         <ChevronLeft className="w-4 h-4" />
@@ -228,9 +224,9 @@ export default function DashboardPage(): React.JSX.Element {
                       <button
                         onClick={() => {
                           const container = document.getElementById('property-carousel-container');
-                          if (container) container.scrollBy({ left: 340, behavior: 'smooth' });
+                          if (container) container.scrollBy({ left: 320, behavior: 'smooth' });
                         }}
-                        className="p-2 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-xs transition-all"
+                        className="p-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-2xs transition-all"
                         title="Next Property"
                       >
                         <ChevronRight className="w-4 h-4" />
@@ -241,10 +237,10 @@ export default function DashboardPage(): React.JSX.Element {
                   {/* Swipeable Horizontal Property Carousel */}
                   <div
                     id="property-carousel-container"
-                    className="flex gap-4 sm:gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-4 pt-1 px-1 scroll-smooth"
+                    className="flex gap-3.5 sm:gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-3 pt-1 px-0.5 scroll-smooth"
                   >
                     {filteredListings.map((listing) => (
-                      <div key={listing.id} className="w-[84vw] sm:w-[320px] md:w-[350px] flex-shrink-0 snap-start">
+                      <div key={listing.id} className="w-[82vw] sm:w-[300px] md:w-[330px] flex-shrink-0 snap-start">
                         <PropertyCard
                           listing={listing}
                           onSelect={handleSelectProperty}
@@ -258,8 +254,8 @@ export default function DashboardPage(): React.JSX.Element {
           ) : currentView === 'map' ? (
             /* Vector Map View */
             <div
-              className="w-full h-full min-h-[500px] relative"
-              style={{ width: '100%', height: '100%', minHeight: '500px' }}
+              className="w-full h-full min-h-[480px] relative"
+              style={{ width: '100%', height: '100%', minHeight: '480px' }}
             >
               <MapComponent
                 activeListings={filteredListings}
@@ -282,49 +278,49 @@ export default function DashboardPage(): React.JSX.Element {
         </div>
       </main>
 
-      {/* Floating Pill Mobile Navigation Bar matching Reference Screenshots */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-full px-3 py-2 shadow-2xl flex items-center gap-1">
+      {/* Compact Floating Pill Mobile Navigation Bar */}
+      <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-full px-2.5 py-1.5 shadow-2xl flex items-center gap-1">
         <button
           onClick={() => setCurrentView('properties')}
-          className={`px-4 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-black flex items-center gap-1 transition-all ${
             currentView === 'properties'
               ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Search className="w-4 h-4" />
+          <Search className="w-3.5 h-3.5" />
           <span>Explore</span>
         </button>
 
         <button
           onClick={() => setCurrentView('map')}
-          className={`px-4 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-black flex items-center gap-1 transition-all ${
             currentView === 'map'
               ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <MapPin className="w-4 h-4" />
+          <MapPin className="w-3.5 h-3.5" />
           <span>Map</span>
         </button>
 
         <button
           onClick={() => setCurrentView('drafts')}
-          className={`px-4 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-black flex items-center gap-1 transition-all ${
             currentView === 'drafts'
               ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <PlusCircle className="w-4 h-4" />
+          <PlusCircle className="w-3.5 h-3.5" />
           <span>Drafts ({drafts.length})</span>
         </button>
 
         <button
           onClick={() => alert('ApnaGhar User Profile')}
-          className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors ml-1"
+          className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors ml-0.5"
         >
-          <User className="w-4 h-4" />
+          <User className="w-3.5 h-3.5" />
         </button>
       </div>
 
