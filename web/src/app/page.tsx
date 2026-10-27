@@ -8,7 +8,7 @@ import MapComponent from '@/components/MapComponent';
 import DraftsList from '@/components/DraftsList';
 import PropertyCard from '@/components/PropertyCard';
 import DraftCompletionForm from '@/components/DraftCompletionForm';
-import { RefreshCw, MapPin, Layers, PlusCircle, Building, LayoutGrid } from 'lucide-react';
+import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles } from 'lucide-react';
 
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
@@ -19,8 +19,8 @@ export default function DashboardPage(): React.JSX.Element {
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Desktop & Mobile View Switcher ('map' | 'drafts' | 'properties')
-  const [currentView, setCurrentView] = useState<'map' | 'drafts' | 'properties'>('map');
+  // View Switcher ('properties' | 'map' | 'drafts')
+  const [currentView, setCurrentView] = useState<'properties' | 'map' | 'drafts'>('properties');
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
 
@@ -123,8 +123,8 @@ export default function DashboardPage(): React.JSX.Element {
   });
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans overflow-x-hidden">
-      {/* ApnaGhar Header with Live Autocomplete Suggestions */}
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans overflow-x-hidden pb-24 md:pb-8">
+      {/* Header Bar */}
       <Header
         draftsCount={drafts.length}
         onOpenDrafts={() => {
@@ -134,72 +134,29 @@ export default function DashboardPage(): React.JSX.Element {
         onSearchQuery={handleSearchQuery}
       />
 
-      {/* Hero Bar with Mode Tabs */}
-      <section className="bg-white border-b border-slate-100 py-4 sm:py-6 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Bengaluru Property Map & Marketplace
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Click active property cards or pins to view/edit/delete, search any location, or select drafts to publish live.
-            </p>
+      {/* Hero Section matching ANI Living Spaces Reference */}
+      <section className="bg-gradient-to-b from-white to-pink-50/30 border-b border-pink-100/50 py-8 px-4 sm:px-8 text-center relative overflow-hidden">
+        <div className="max-w-3xl mx-auto space-y-3">
+          <div className="inline-flex items-center gap-1.5 bg-pink-100/80 text-brand-600 px-3.5 py-1 rounded-full text-[11px] font-black tracking-wider uppercase">
+            <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+            <span>Premium Service Apartments · Bengaluru</span>
           </div>
 
-          {/* Desktop & Mobile View Tabs */}
-          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
-            <button
-              onClick={() => setCurrentView('map')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all ${
-                currentView === 'map'
-                  ? 'bg-brand-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <MapPin className="w-3.5 h-3.5" />
-              <span>Vector Map</span>
-            </button>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight font-serif">
+            Stay in Comfort, <span className="text-brand-500">Stay with Us.</span>
+          </h1>
 
-            <button
-              onClick={() => setCurrentView('properties')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all ${
-                currentView === 'properties'
-                  ? 'bg-brand-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Listings Grid ({filteredListings.length})</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('drafts')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all ${
-                currentView === 'drafts'
-                  ? 'bg-brand-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>Drafts ({drafts.length})</span>
-            </button>
-
-            <button
-              onClick={() => loadData(true)}
-              className="p-2 text-slate-500 hover:text-slate-900 rounded-xl transition-colors ml-1"
-              title="Refresh Data"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-500' : ''}`} />
-            </button>
-          </div>
+          <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-xl mx-auto leading-relaxed">
+            Modern service apartments designed for business & leisure — book your perfect urban retreat in minutes.
+          </p>
         </div>
       </section>
 
-      {/* Main Workspace */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-6 md:p-8 flex flex-col md:flex-row gap-4 md:gap-8">
-        {/* Left Column: Drafts Sidebar */}
+      {/* Main Content Workspace */}
+      <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6">
+        {/* Left Column: Drafts Queue (Desktop Sidebar) */}
         <div
-          className={`w-full md:w-80 lg:w-96 flex-shrink-0 min-h-[450px] ${
+          className={`w-full md:w-80 lg:w-96 flex-shrink-0 ${
             currentView === 'drafts' ? 'block' : 'hidden md:block'
           }`}
         >
@@ -209,12 +166,63 @@ export default function DashboardPage(): React.JSX.Element {
           />
         </div>
 
-        {/* Right Column: Main Content (Map OR Properties Grid) */}
+        {/* Right Column: Main Content (Listings Grid OR Vector Map) */}
         <div
-          className="flex-1 flex flex-col min-h-[520px] w-full"
-          style={{ minHeight: '520px', width: '100%' }}
+          className="flex-1 flex flex-col min-h-[500px] w-full"
+          style={{ width: '100%', minHeight: '500px' }}
         >
-          {currentView === 'map' ? (
+          {currentView === 'properties' ? (
+            /* Featured Listings Grid View */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-brand-500 font-extrabold text-[10px] uppercase tracking-wider bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-100">
+                    OUR BUILDINGS
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                    Prime locations across Bengaluru
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => loadData(true)}
+                    className="p-2 text-slate-500 hover:text-slate-900 bg-white rounded-full border border-slate-200 transition-colors shadow-2xs"
+                    title="Refresh Data"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-500' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('map')}
+                    className="bg-brand-50 text-brand-600 hover:bg-brand-500 hover:text-white font-extrabold text-xs px-3.5 py-2 rounded-full border border-brand-100 transition-all shadow-2xs flex items-center gap-1.5"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Map View</span>
+                  </button>
+                </div>
+              </div>
+
+              {filteredListings.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 shadow-xs">
+                  <Building className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                  <p className="text-base font-bold text-slate-800">No active listings match your search</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    Select a draft from the sidebar to set location and publish live!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
+                  {filteredListings.map((listing) => (
+                    <PropertyCard
+                      key={listing.id}
+                      listing={listing}
+                      onSelect={handleSelectProperty}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : currentView === 'map' ? (
             /* Vector Map View */
             <div
               className="w-full h-full min-h-[500px] relative"
@@ -228,50 +236,6 @@ export default function DashboardPage(): React.JSX.Element {
                 onSelectListing={handleSelectProperty}
                 apiKey={googleMapsApiKey}
               />
-
-              {/* Floating Quick Action Badge */}
-              {drafts.length > 0 && (
-                <button
-                  onClick={() => {
-                    setCurrentView('drafts');
-                    if (!selectedDraft) setSelectedDraft(drafts[0]);
-                  }}
-                  className="md:hidden absolute bottom-4 left-4 right-4 bg-brand-500 text-white font-extrabold text-xs py-3 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 border border-white/20"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Configure {drafts.length} Pending Drafts</span>
-                </button>
-              )}
-            </div>
-          ) : currentView === 'properties' ? (
-            /* Active Listings Grid View */
-            <div className="py-2">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-black text-slate-900">Active Property Listings</h2>
-                <span className="text-xs font-bold text-slate-400">
-                  {filteredListings.length} Properties Available
-                </span>
-              </div>
-
-              {filteredListings.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 text-slate-400 shadow-sm">
-                  <Building className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                  <p className="text-base font-bold text-slate-800">No active listings found</p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                    Select a draft from the left sidebar to set coordinates and publish it live!
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredListings.map((listing) => (
-                    <PropertyCard
-                      key={listing.id}
-                      listing={listing}
-                      onSelect={handleSelectProperty}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
           ) : (
             /* Drafts Mobile Fallback */
@@ -284,6 +248,52 @@ export default function DashboardPage(): React.JSX.Element {
           )}
         </div>
       </main>
+
+      {/* Floating Pill Mobile Navigation Bar matching Reference Screenshots */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-full px-3 py-2 shadow-2xl flex items-center gap-1">
+        <button
+          onClick={() => setCurrentView('properties')}
+          className={`px-4 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+            currentView === 'properties'
+              ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Search className="w-4 h-4" />
+          <span>Explore</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentView('map')}
+          className={`px-4 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+            currentView === 'map'
+              ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <MapPin className="w-4 h-4" />
+          <span>Map</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentView('drafts')}
+          className={`px-4 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+            currentView === 'drafts'
+              ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>Drafts ({drafts.length})</span>
+        </button>
+
+        <button
+          onClick={() => alert('ApnaGhar User Profile')}
+          className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors ml-1"
+        >
+          <User className="w-4 h-4" />
+        </button>
+      </div>
 
       {/* Property Showcase / Editor / Delete Modal */}
       {selectedDraft && (
