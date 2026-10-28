@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  deploymentId: `apnaghar_deploy_${Date.now()}`,
   images: {
     domains: ["api.telegram.org", "localhost", "127.0.0.1"]
   },
