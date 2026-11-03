@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, PlusCircle, Home, X, Navigation, ShieldCheck, LogOut, Sparkles, MapPin } from 'lucide-react';
+import { Search, User, PlusCircle, Home, X, Navigation, ShieldCheck, LogOut, Sparkles, MapPin, Clock } from 'lucide-react';
 import { HeaderProps } from '@/types';
 
 interface SuggestionItem {
   place_id: string | number;
+  main_text: string;
+  secondary_text?: string;
   display_name: string;
   lat?: string;
   lon?: string;
@@ -14,14 +16,12 @@ interface SuggestionItem {
 
 // Popular Bengaluru Landmarks
 const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
-  { place_id: 'bgl_1', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
-  { place_id: 'bgl_2', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
-  { place_id: 'bgl_3', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
-  { place_id: 'bgl_4', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
-  { place_id: 'bgl_5', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
-  { place_id: 'bgl_6', display_name: 'MG Road, Bengaluru', lat: '12.9756', lon: '77.6066' },
-  { place_id: 'bgl_7', display_name: 'Jayanagar, Bengaluru', lat: '12.9299', lon: '77.5824' },
-  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' }
+  { place_id: 'bgl_1', main_text: 'Koramangala', secondary_text: 'Bengaluru, Karnataka', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
+  { place_id: 'bgl_2', main_text: 'Indiranagar', secondary_text: 'Bengaluru, Karnataka', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
+  { place_id: 'bgl_3', main_text: 'HSR Layout', secondary_text: 'Bengaluru, Karnataka', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
+  { place_id: 'bgl_4', main_text: 'Whitefield', secondary_text: 'Bengaluru, Karnataka', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
+  { place_id: 'bgl_5', main_text: 'Electronic City Phase 1', secondary_text: 'Bengaluru, Karnataka', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
+  { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: '12.9063', lon: '77.5857' }
 ];
 
 export default function Header({
@@ -38,7 +38,19 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Autocomplete Suggestions Engine
+  // Google Places Autocomplete Session Token
+  const sessionTokenRef = useRef<any>(null);
+
+  const getOrCreateSessionToken = () => {
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
+      if (!sessionTokenRef.current && window.google.maps.places.AutocompleteSessionToken) {
+        sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+      }
+    }
+    return sessionTokenRef.current;
+  };
+
+  // Google Places + Nominatim Autocomplete Engine with Native Google Maps Dropdown Layout
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -47,7 +59,9 @@ export default function Header({
 
     const directActionItem: SuggestionItem = {
       place_id: `search_${Date.now()}`,
-      display_name: `Search maps for "${query}"`,
+      main_text: query,
+      secondary_text: 'Search map location',
+      display_name: query,
       isGooglePlace: true
     };
 
@@ -61,36 +75,44 @@ export default function Header({
 
     const timer = setTimeout(() => {
       setIsLoading(true);
+      const token = getOrCreateSessionToken();
 
-      // Attempt A: Google Places Autocomplete Service
+      // Attempt A: Google Places Autocomplete Service (Exact Google Maps Parity)
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
-          service.getPlacePredictions(
-            {
-              input: query,
-              locationBias: {
-                center: { lat: 12.9716, lng: 77.5946 },
-                radius: 50000
-              },
-              componentRestrictions: { country: 'in' }
+          const requestOptions: any = {
+            input: query,
+            locationBias: {
+              center: { lat: 12.9716, lng: 77.5946 },
+              radius: 50000 // 50 km Bengaluru radius
             },
-            (predictions, status) => {
-              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-                const googleResults: SuggestionItem[] = predictions.map((p) => ({
-                  place_id: p.place_id,
-                  display_name: p.description,
-                  isGooglePlace: true
-                }));
-                setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
-                setShowDropdown(true);
-                setIsLoading(false);
-                return;
-              }
+            language: 'en',
+            region: 'in',
+            componentRestrictions: { country: 'in' }
+          };
+
+          if (token) {
+            requestOptions.sessionToken = token;
+          }
+
+          service.getPlacePredictions(requestOptions, (predictions, status) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+              const googleResults: SuggestionItem[] = predictions.map((p) => ({
+                place_id: p.place_id,
+                main_text: p.structured_formatting?.main_text || p.description.split(',')[0],
+                secondary_text: p.structured_formatting?.secondary_text || p.description.split(',').slice(1).join(','),
+                display_name: p.description,
+                isGooglePlace: true
+              }));
+              setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
+              setShowDropdown(true);
+              setIsLoading(false);
+              return;
             }
-          );
+          });
         } catch (err) {
-          console.warn('Google Places autocomplete error:', err);
+          console.warn('Google Places autocomplete failed, falling back to Nominatim', err);
         }
       }
 
@@ -101,9 +123,17 @@ export default function Header({
 
       fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQueryFormatted)}&limit=5`)
         .then((res) => (res.ok ? res.json() : []))
-        .then((data: SuggestionItem[]) => {
+        .then((data: any[]) => {
           if (data && data.length > 0) {
-            const combined = [directActionItem, ...data, ...localMatches];
+            const mappedData: SuggestionItem[] = data.map((d) => ({
+              place_id: d.place_id,
+              main_text: d.display_name.split(',')[0],
+              secondary_text: d.display_name.split(',').slice(1).join(','),
+              display_name: d.display_name,
+              lat: d.lat,
+              lon: d.lon
+            }));
+            const combined = [directActionItem, ...mappedData, ...localMatches];
             const unique = combined.filter(
               (v, i, a) => a.findIndex((t) => t.display_name.split(',')[0] === v.display_name.split(',')[0]) === i
             );
@@ -129,15 +159,20 @@ export default function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleTriggerSearch = (searchString: string, placeId?: string | number) => {
-    let cleanName = searchString.replace('Search maps for "', '').replace('"', '').trim();
+  const handleSelectSuggestion = (item: SuggestionItem) => {
+    const cleanName = item.main_text || item.display_name.split(',')[0];
     setQuery(cleanName);
     setShowDropdown(false);
+    sessionTokenRef.current = null;
 
-    // If Google Place ID exists and Google Geocoder is loaded
-    if (placeId && !String(placeId).startsWith('search_') && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+    // If Google Place ID, resolve exact lat/lng via Geocoder
+    if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ placeId: String(placeId) }, (results, status) => {
+      const geocodeTarget = String(item.place_id).startsWith('search_')
+        ? { address: `${cleanName}, Bengaluru, Karnataka` }
+        : { placeId: String(item.place_id) };
+
+      geocoder.geocode(geocodeTarget, (results, status) => {
         if (status === 'OK' && results && results[0]) {
           const loc = results[0].geometry.location;
           if (onSearchQuery) {
@@ -150,20 +185,14 @@ export default function Header({
       return;
     }
 
-    if (onSearchQuery) {
+    if (item.lat && item.lon && onSearchQuery) {
+      onSearchQuery(cleanName, {
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon)
+      });
+    } else if (onSearchQuery) {
       onSearchQuery(cleanName);
     }
-  };
-
-  const handleSelectSuggestion = (item: SuggestionItem) => {
-    if (item.lat && item.lon && onSearchQuery) {
-      const cleanName = item.display_name.split(',')[0];
-      setQuery(cleanName);
-      setShowDropdown(false);
-      onSearchQuery(cleanName, { lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
-      return;
-    }
-    handleTriggerSearch(item.display_name, item.place_id);
   };
 
   const handleInputChange = (value: string) => {
@@ -178,6 +207,7 @@ export default function Header({
     setQuery('');
     setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
     setShowDropdown(false);
+    sessionTokenRef.current = null;
     if (onSearchQuery) {
       onSearchQuery('');
     }
@@ -213,10 +243,16 @@ export default function Header({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && query.trim()) {
                       e.preventDefault();
-                      handleTriggerSearch(query);
+                      handleSelectSuggestion({
+                        place_id: `search_enter_${Date.now()}`,
+                        main_text: query,
+                        display_name: query,
+                        isGooglePlace: true
+                      });
                     }
                   }}
                   onFocus={() => {
+                    getOrCreateSessionToken();
                     if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                     setShowDropdown(true);
                   }}
@@ -230,41 +266,40 @@ export default function Header({
                   <X className="w-3 h-3" />
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (query.trim()) handleTriggerSearch(query);
-                  }}
-                  className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0 cursor-pointer"
-                >
+                <div className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0">
                   <Search className="w-3 h-3" />
-                </button>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Autocomplete Dropdown List */}
+          {/* Google Maps Styled Dropdown List */}
           {showDropdown && (
             <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-brand-500" />
-                  <span>Location Search Suggestions</span>
+                  <span>Google Maps Location Search</span>
                 </span>
                 {isLoading && <span className="text-brand-500 animate-pulse">Searching...</span>}
               </div>
-              <div className="max-h-60 overflow-y-auto divide-y divide-slate-50">
+              <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
                 {suggestions.map((item) => (
                   <button
                     key={item.place_id}
                     onClick={() => handleSelectSuggestion(item)}
-                    className="w-full text-left px-3.5 py-2.5 hover:bg-brand-50/60 flex items-start gap-2.5 transition-colors group"
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-start gap-3 transition-colors group"
                   >
-                    <Navigation className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 group-hover:text-brand-600 line-clamp-1">
-                        {item.display_name}
+                    <MapPin className="w-4 h-4 text-slate-400 group-hover:text-brand-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-900 group-hover:text-brand-600 truncate">
+                        {item.main_text || item.display_name.split(',')[0]}
                       </p>
+                      {item.secondary_text && (
+                        <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                          {item.secondary_text}
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Script from 'next/script';
 import { Listing, DraftUpdatePayload } from '@/types';
 import { fetchDraftListings, fetchActiveListings, updateDraftListing, deleteListing } from '@/lib/api';
 import Header from '@/components/Header';
@@ -208,6 +209,14 @@ export default function DashboardPage(): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans overflow-x-hidden pb-20 md:pb-8">
+      {/* Load Google Maps Places Script Globally */}
+      {googleMapsApiKey && googleMapsApiKey !== 'YOUR_GOOGLE_MAPS_API_KEY' && (
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`}
+          strategy="afterInteractive"
+        />
+      )}
+
       {/* Header Bar */}
       <Header
         draftsCount={drafts.length}
