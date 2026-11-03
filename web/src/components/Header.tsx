@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, MapPin, Search, User, PlusCircle, Home, X, Navigation, ShieldCheck, LogOut, Sparkles } from 'lucide-react';
+import { Search, User, PlusCircle, Home, X, Navigation, ShieldCheck, LogOut, Sparkles, MapPin } from 'lucide-react';
 import { HeaderProps } from '@/types';
 
 interface SuggestionItem {
   place_id: string | number;
   display_name: string;
-  lat: string;
-  lon: string;
+  lat?: string;
+  lon?: string;
+  isGooglePlace?: boolean;
 }
 
-// Popular Bengaluru Landmarks for Instant 0ms Autocomplete
+// Popular Bengaluru Landmarks
 const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
   { place_id: 'bgl_1', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
   { place_id: 'bgl_2', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
@@ -20,9 +21,7 @@ const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
   { place_id: 'bgl_5', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
   { place_id: 'bgl_6', display_name: 'MG Road, Bengaluru', lat: '12.9756', lon: '77.6066' },
   { place_id: 'bgl_7', display_name: 'Jayanagar, Bengaluru', lat: '12.9299', lon: '77.5824' },
-  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' },
-  { place_id: 'bgl_9', display_name: 'Marathahalli, Bengaluru', lat: '12.9592', lon: '77.6974' },
-  { place_id: 'bgl_10', display_name: 'Hebbal, Bengaluru', lat: '13.0359', lon: '77.5970' }
+  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' }
 ];
 
 export default function Header({
@@ -39,49 +38,71 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch Autocomplete Suggestions as user types + filter local popular list
+  // Google Places + Nominatim Autocomplete Engine
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
       return;
     }
 
-    // 1. Instant Local Matching (0ms delay)
+    // 1. Instant Local Match (0ms)
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(query.toLowerCase())
     );
-
     setSuggestions(localMatches);
     setShowDropdown(true);
 
-    // 2. Fetch Online Nominatim Autocomplete
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setIsLoading(true);
-      try {
-        const searchQueryFormatted = query.toLowerCase().includes('bengaluru') || query.toLowerCase().includes('bangalore')
-          ? query
-          : `${query}, Bengaluru`;
 
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQueryFormatted)}&limit=5`
-        );
-        if (res.ok) {
-          const data: SuggestionItem[] = await res.json();
+      // Attempt A: Google Places Autocomplete Service if loaded
+      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
+        try {
+          const service = new window.google.maps.places.AutocompleteService();
+          service.getPlacePredictions(
+            {
+              input: query,
+              componentRestrictions: { country: 'in' }
+            },
+            (predictions, status) => {
+              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                const googleResults: SuggestionItem[] = predictions.map((p) => ({
+                  place_id: p.place_id,
+                  display_name: p.description,
+                  isGooglePlace: true
+                }));
+                setSuggestions(googleResults.slice(0, 6));
+                setShowDropdown(true);
+                setIsLoading(false);
+                return;
+              }
+            }
+          );
+        } catch (err) {
+          console.warn('Google Places autocomplete failed, falling back to Nominatim', err);
+        }
+      }
+
+      // Attempt B: OpenStreetMap Nominatim Fallback
+      const searchQueryFormatted = query.toLowerCase().includes('bengaluru') || query.toLowerCase().includes('bangalore')
+        ? query
+        : `${query}, Bengaluru`;
+
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQueryFormatted)}&limit=5`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: SuggestionItem[]) => {
           if (data && data.length > 0) {
-            // Combine online results with local results avoiding duplicates
             const combined = [...data, ...localMatches];
             const unique = combined.filter(
               (v, i, a) => a.findIndex((t) => t.display_name.split(',')[0] === v.display_name.split(',')[0]) === i
             );
             setSuggestions(unique.slice(0, 6));
+            setShowDropdown(true);
           }
-        }
-      } catch (err) {
-        console.warn('Autocomplete fetch error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 200);
+        })
+        .catch((err) => console.warn(err))
+        .finally(() => setIsLoading(false));
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -102,11 +123,27 @@ export default function Header({
     setQuery(cleanName);
     setShowDropdown(false);
 
-    if (onSearchQuery) {
+    // If Google Place ID, resolve lat/lng via Geocoder
+    if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ placeId: String(item.place_id) }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          if (onSearchQuery) {
+            onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
+          }
+        }
+      });
+      return;
+    }
+
+    if (item.lat && item.lon && onSearchQuery) {
       onSearchQuery(cleanName, {
         lat: parseFloat(item.lat),
         lng: parseFloat(item.lon)
       });
+    } else if (onSearchQuery) {
+      onSearchQuery(cleanName);
     }
   };
 
@@ -158,7 +195,7 @@ export default function Header({
                     if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                     setShowDropdown(true);
                   }}
-                  placeholder="Where to? Search location..."
+                  placeholder="Where to? Search house, landmark, area..."
                   className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-500 truncate"
                 />
               </div>
@@ -181,7 +218,7 @@ export default function Header({
               <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-brand-500" />
-                  <span>Popular Locations</span>
+                  <span>Google Places / Location Suggestions</span>
                 </span>
                 {isLoading && <span className="text-brand-500 animate-pulse">Searching...</span>}
               </div>

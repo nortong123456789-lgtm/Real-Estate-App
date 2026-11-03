@@ -11,11 +11,12 @@ import {
 interface SuggestionItem {
   place_id: string | number;
   display_name: string;
-  lat: string;
-  lon: string;
+  lat?: string;
+  lon?: string;
+  isGooglePlace?: boolean;
 }
 
-// Popular Bengaluru Landmarks for Instant 0ms Autocomplete inside Modal
+// Popular Bengaluru Landmarks
 const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
   { place_id: 'bgl_1', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
   { place_id: 'bgl_2', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
@@ -24,9 +25,7 @@ const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
   { place_id: 'bgl_5', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
   { place_id: 'bgl_6', display_name: 'MG Road, Bengaluru', lat: '12.9756', lon: '77.6066' },
   { place_id: 'bgl_7', display_name: 'Jayanagar, Bengaluru', lat: '12.9299', lon: '77.5824' },
-  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' },
-  { place_id: 'bgl_9', display_name: 'Marathahalli, Bengaluru', lat: '12.9592', lon: '77.6974' },
-  { place_id: 'bgl_10', display_name: 'Hebbal, Bengaluru', lat: '13.0359', lon: '77.5970' }
+  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' }
 ];
 
 interface PropertyModalProps {
@@ -111,14 +110,14 @@ export default function DraftCompletionForm({
     }
   }, [selectedCoords]);
 
-  // Autocomplete Suggestions as User Types + Instant Local Matches
+  // Autocomplete Suggestions with Google Places + Nominatim Fallback
   useEffect(() => {
     if (!searchAddress.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
       return;
     }
 
-    // 1. Instant Local Matching (0ms delay)
+    // 1. Instant Local Match (0ms)
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(searchAddress.toLowerCase())
     );
@@ -126,19 +125,45 @@ export default function DraftCompletionForm({
     setSuggestions(localMatches);
     setShowDropdown(true);
 
-    // 2. Fetch Online Nominatim Autocomplete
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setIsSearching(true);
-      try {
-        const queryFormatted = searchAddress.toLowerCase().includes('bengaluru') || searchAddress.toLowerCase().includes('bangalore')
-          ? searchAddress
-          : `${searchAddress}, Bengaluru`;
 
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFormatted)}&limit=5`
-        );
-        if (res.ok) {
-          const data: SuggestionItem[] = await res.json();
+      // Attempt A: Google Places Autocomplete Service
+      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
+        try {
+          const service = new window.google.maps.places.AutocompleteService();
+          service.getPlacePredictions(
+            {
+              input: searchAddress,
+              componentRestrictions: { country: 'in' }
+            },
+            (predictions, status) => {
+              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                const googleResults: SuggestionItem[] = predictions.map((p) => ({
+                  place_id: p.place_id,
+                  display_name: p.description,
+                  isGooglePlace: true
+                }));
+                setSuggestions(googleResults.slice(0, 6));
+                setShowDropdown(true);
+                setIsSearching(false);
+                return;
+              }
+            }
+          );
+        } catch (err) {
+          console.warn('Google Places autocomplete error:', err);
+        }
+      }
+
+      // Attempt B: OpenStreetMap Nominatim Fallback
+      const queryFormatted = searchAddress.toLowerCase().includes('bengaluru') || searchAddress.toLowerCase().includes('bangalore')
+        ? searchAddress
+        : `${searchAddress}, Bengaluru`;
+
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFormatted)}&limit=5`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: SuggestionItem[]) => {
           if (data && data.length > 0) {
             const combined = [...data, ...localMatches];
             const unique = combined.filter(
@@ -147,13 +172,10 @@ export default function DraftCompletionForm({
             setSuggestions(unique.slice(0, 6));
             setShowDropdown(true);
           }
-        }
-      } catch (err) {
-        console.warn('Autocomplete fetch error:', err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 200);
+        })
+        .catch((err) => console.warn(err))
+        .finally(() => setIsSearching(false));
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [searchAddress]);
@@ -174,15 +196,38 @@ export default function DraftCompletionForm({
     setSearchAddress(cleanName);
     setShowDropdown(false);
 
-    const newLat = parseFloat(item.lat);
-    const newLng = parseFloat(item.lon);
+    // Resolve Google Place ID if Google Maps Geocoder is loaded
+    if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ placeId: String(item.place_id) }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          const newLat = loc.lat();
+          const newLng = loc.lng();
 
-    setLatitude(newLat);
-    setLongitude(newLng);
-    setSearchFeedback(`Pin placed at: ${cleanName}`);
+          setLatitude(newLat);
+          setLongitude(newLng);
+          setSearchFeedback(`Pin placed at: ${cleanName}`);
 
-    if (onUpdateCoords) {
-      onUpdateCoords({ lat: newLat, lng: newLng });
+          if (onUpdateCoords) {
+            onUpdateCoords({ lat: newLat, lng: newLng });
+          }
+        }
+      });
+      return;
+    }
+
+    if (item.lat && item.lon) {
+      const newLat = parseFloat(item.lat);
+      const newLng = parseFloat(item.lon);
+
+      setLatitude(newLat);
+      setLongitude(newLng);
+      setSearchFeedback(`Pin placed at: ${cleanName}`);
+
+      if (onUpdateCoords) {
+        onUpdateCoords({ lat: newLat, lng: newLng });
+      }
     }
   };
 
@@ -489,7 +534,7 @@ export default function DraftCompletionForm({
                       if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                       setShowDropdown(true);
                     }}
-                    placeholder="Search location, Indiranagar, Koramangala..."
+                    placeholder="Search house, landmark, building, area..."
                     className="w-full text-xs font-medium text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-400"
                   />
                   {searchAddress && (
@@ -514,7 +559,7 @@ export default function DraftCompletionForm({
                   <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     <span className="flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-brand-500" />
-                      <span>Popular Locations</span>
+                      <span>Google Places / Location Suggestions</span>
                     </span>
                     {isSearching && <span className="text-brand-500 animate-pulse">Searching...</span>}
                   </div>
