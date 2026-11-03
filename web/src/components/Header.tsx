@@ -38,14 +38,26 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Google Places + Nominatim Autocomplete Engine with Search Action Item
+  // Google Places Autocomplete Session Token
+  const sessionTokenRef = useRef<any>(null);
+
+  // Initialize Session Token on Focus/Typing
+  const getOrCreateSessionToken = () => {
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
+      if (!sessionTokenRef.current && window.google.maps.places.AutocompleteSessionToken) {
+        sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+      }
+    }
+    return sessionTokenRef.current;
+  };
+
+  // Google Places Autocomplete Engine (Spec Compliant: LocationBias, Language, Region, SessionToken, Country Restrictions)
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
       return;
     }
 
-    // Always include a direct search action item for the exact user query
     const directActionItem: SuggestionItem = {
       place_id: `search_${Date.now()}`,
       display_name: `Search maps for "${query}"`,
@@ -63,33 +75,40 @@ export default function Header({
     const timer = setTimeout(() => {
       setIsLoading(true);
 
-      // Attempt A: Google Places Autocomplete Service with strict 50km Bengaluru Bias
+      const token = getOrCreateSessionToken();
+
+      // Attempt A: Google Places Autocomplete Service (Native App Parity)
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
-          service.getPlacePredictions(
-            {
-              input: query,
-              locationBias: {
-                center: { lat: 12.9716, lng: 77.5946 },
-                radius: 50000 // 50 km Bengaluru radius
-              },
-              componentRestrictions: { country: 'in' }
+          const requestOptions: any = {
+            input: query,
+            locationBias: {
+              center: { lat: 12.9716, lng: 77.5946 },
+              radius: 50000 // 50 km Bengaluru radius
             },
-            (predictions, status) => {
-              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-                const googleResults: SuggestionItem[] = predictions.map((p) => ({
-                  place_id: p.place_id,
-                  display_name: p.description,
-                  isGooglePlace: true
-                }));
-                setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
-                setShowDropdown(true);
-                setIsLoading(false);
-                return;
-              }
+            language: 'en',
+            region: 'in',
+            componentRestrictions: { country: 'in' }
+          };
+
+          if (token) {
+            requestOptions.sessionToken = token;
+          }
+
+          service.getPlacePredictions(requestOptions, (predictions, status) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+              const googleResults: SuggestionItem[] = predictions.map((p) => ({
+                place_id: p.place_id,
+                display_name: p.description,
+                isGooglePlace: true
+              }));
+              setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
+              setShowDropdown(true);
+              setIsLoading(false);
+              return;
             }
-          );
+          });
         } catch (err) {
           console.warn('Google Places autocomplete failed, falling back to Nominatim', err);
         }
@@ -136,6 +155,9 @@ export default function Header({
     setQuery(cleanName);
     setShowDropdown(false);
 
+    // Reset session token after selection
+    sessionTokenRef.current = null;
+
     // If Google Place ID or Search Action Item, resolve via Google Geocoder
     if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
@@ -181,6 +203,7 @@ export default function Header({
     setQuery('');
     setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
     setShowDropdown(false);
+    sessionTokenRef.current = null;
     if (onSearchQuery) {
       onSearchQuery('');
     }
@@ -224,10 +247,11 @@ export default function Header({
                     }
                   }}
                   onFocus={() => {
+                    getOrCreateSessionToken();
                     if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                     setShowDropdown(true);
                   }}
-                  placeholder="Where to? Search house, apartment, area..."
+                  placeholder="Where to? Search house, landmark, building..."
                   className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-500 truncate"
                 />
               </div>
