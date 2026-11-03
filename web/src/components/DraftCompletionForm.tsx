@@ -41,7 +41,7 @@ export default function DraftCompletionForm({
   // Active Photo Index in Gallery Carousel
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
 
-  // Form Fields - Pre-populate with existing property values or defaults
+  // Form Fields
   const [configuration, setConfiguration] = useState<string>(property?.configuration || '2 BHK Apartment');
   const [rentAmount, setRentAmount] = useState<number | ''>(property?.rent_amount ?? 25000);
   const [description, setDescription] = useState<string>(
@@ -176,7 +176,7 @@ export default function DraftCompletionForm({
 
   return (
     <div className="fixed inset-0 bg-darkNav/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full p-5 sm:p-7 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-7 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
 
         {/* Top Header Bar */}
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
@@ -238,9 +238,9 @@ export default function DraftCompletionForm({
 
         {/* ----------------- MODE 1: VIEW DETAILS MODE ----------------- */}
         {!isEditMode ? (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Photo Gallery Carousel / Showcase */}
-            <div className="relative w-full h-64 sm:h-72 bg-slate-900 rounded-2xl overflow-hidden group shadow-md">
+            <div className="relative w-full h-56 sm:h-72 bg-slate-900 rounded-2xl overflow-hidden group shadow-md">
               {currentMediaUrl ? (
                 currentMedia?.file_type.startsWith('video') ? (
                   <video
@@ -317,20 +317,20 @@ export default function DraftCompletionForm({
               </div>
             )}
 
-            {/* Property Key Details */}
+            {/* Property Key Details without prefix or raw coords */}
             <div>
               <div className="flex items-baseline gap-1 text-brand-500 font-black text-2xl mb-1">
                 <span>₹{property.rent_amount ? property.rent_amount.toLocaleString('en-IN') : '25,000'}</span>
                 <span className="text-xs font-semibold text-slate-400">/month</span>
               </div>
 
-              <h2 className="text-xl font-extrabold text-slate-900 mb-1">
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 mb-1">
                 {property.configuration || '2 BHK Apartment'}
               </h2>
 
               <p className="text-xs text-slate-500 flex items-center gap-1.5 mb-3">
                 <MapPin className="w-4 h-4 text-brand-500 flex-shrink-0" />
-                <span>Lat: {property.latitude?.toFixed(4) || '12.9716'}, Lng: {property.longitude?.toFixed(4) || '77.5946'}</span>
+                <span>Bengaluru, Karnataka</span>
               </p>
 
               {/* Public Description */}
@@ -360,7 +360,7 @@ export default function DraftCompletionForm({
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setIsEditMode(true)}
-                className="flex-1 py-3.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
               >
                 <Edit3 className="w-4 h-4 text-brand-500" />
                 <span>Edit Property</span>
@@ -368,7 +368,7 @@ export default function DraftCompletionForm({
 
               <button
                 onClick={() => alert('Agent Contacted!')}
-                className="flex-1 py-3.5 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
+                className="flex-1 py-3 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
               >
                 <Phone className="w-4 h-4" />
                 <span>Contact Partner</span>
@@ -377,7 +377,7 @@ export default function DraftCompletionForm({
           </div>
         ) : (
           /* ----------------- MODE 2: EDIT PROPERTY MODE ----------------- */
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             {/* Real Media Preview Section */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -507,7 +507,7 @@ export default function DraftCompletionForm({
               <select
                 value={configuration}
                 onChange={(e) => setConfiguration(e.target.value)}
-                className="w-full px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm font-semibold text-slate-800 bg-slate-50/50"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm font-semibold text-slate-800 bg-slate-50/50"
               >
                 <option value="1 BHK Apartment">1 BHK Apartment</option>
                 <option value="2 BHK Apartment">2 BHK Apartment</option>
@@ -529,7 +529,7 @@ export default function DraftCompletionForm({
                 onChange={(e) => setRentAmount(e.target.value ? Number(e.target.value) : '')}
                 placeholder="25000"
                 required
-                className="w-full px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm font-semibold text-slate-800 bg-slate-50/50"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm font-semibold text-slate-800 bg-slate-50/50"
               />
             </div>
 
@@ -542,9 +542,9 @@ export default function DraftCompletionForm({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={2}
                 placeholder="Describe apartment amenities, balcony, parking, furnishings..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-xs font-medium text-slate-800 bg-slate-50/50"
+                className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-xs font-medium text-slate-800 bg-slate-50/50"
               />
             </div>
 
@@ -559,31 +559,22 @@ export default function DraftCompletionForm({
                 onChange={(e) => setAdminNotes(e.target.value)}
                 rows={2}
                 placeholder="Owner phone number, security key instructions, internal notes..."
-                className="w-full px-4 py-2.5 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-xs font-medium text-amber-950 bg-amber-50/40"
+                className="w-full px-4 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-xs font-medium text-amber-950 bg-amber-50/40"
               />
-            </div>
-
-            {/* Location Pin Coords */}
-            <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80 text-xs text-slate-600">
-              <span className="font-extrabold text-slate-800 block mb-0.5">Current Pin Coords (Click Map to relocate):</span>
-              <div className="flex justify-between font-mono text-slate-700 text-[11px]">
-                <span>Lat: {latitude.toFixed(4)}</span>
-                <span>Lng: {longitude.toFixed(4)}</span>
-              </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setIsEditMode(false)}
-                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs sm:text-sm hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 py-3 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
               >
                 <Check className="w-4 h-4" />
                 <span>{isSubmitting ? 'Publishing...' : 'Publish / Save Changes'}</span>
