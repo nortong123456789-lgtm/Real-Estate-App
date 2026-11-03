@@ -21,6 +21,7 @@ interface PropertyModalProps {
   onClose: () => void;
   onSubmit: (payload: DraftUpdatePayload) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onUpdateCoords?: (coords: { lat: number; lng: number }) => void;
   initialEditMode?: boolean;
 }
 
@@ -30,6 +31,7 @@ export default function DraftCompletionForm({
   onClose,
   onSubmit,
   onDelete,
+  onUpdateCoords,
   initialEditMode = false
 }: PropertyModalProps) {
   // Early return if property object is undefined
@@ -146,6 +148,10 @@ export default function DraftCompletionForm({
     setLatitude(newLat);
     setLongitude(newLng);
     setSearchFeedback(`Pin placed at: ${cleanName}`);
+
+    if (onUpdateCoords) {
+      onUpdateCoords({ lat: newLat, lng: newLng });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -317,7 +323,7 @@ export default function DraftCompletionForm({
               </div>
             )}
 
-            {/* Property Key Details without prefix or raw coords */}
+            {/* Property Key Details */}
             <div>
               <div className="flex items-baseline gap-1 text-brand-500 font-black text-2xl mb-1">
                 <span>₹{property.rent_amount ? property.rent_amount.toLocaleString('en-IN') : '25,000'}</span>

@@ -405,6 +405,10 @@ export default function DashboardPage(): React.JSX.Element {
           onClose={() => setSelectedDraft(null)}
           onSubmit={handleCompleteDraft}
           onDelete={handleDeleteListing}
+          onUpdateCoords={(coords) => {
+            setSelectedCoords(coords);
+            setMapCenter(coords);
+          }}
         />
       )}
     </div>
