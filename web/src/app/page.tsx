@@ -8,7 +8,8 @@ import MapComponent from '@/components/MapComponent';
 import DraftsList from '@/components/DraftsList';
 import PropertyCard from '@/components/PropertyCard';
 import DraftCompletionForm from '@/components/DraftCompletionForm';
-import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import AgentChatDrawer from '@/components/AgentChatDrawer';
+import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot } from 'lucide-react';
 
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
@@ -18,6 +19,7 @@ export default function DashboardPage(): React.JSX.Element {
   const [selectedDraft, setSelectedDraft] = useState<Listing | null>(null);
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
 
   // View Switcher ('properties' | 'map' | 'drafts')
   const [currentView, setCurrentView] = useState<'properties' | 'map' | 'drafts'>('properties');
@@ -317,12 +319,19 @@ export default function DashboardPage(): React.JSX.Element {
         </button>
 
         <button
-          onClick={() => alert('ApnaGhar User Profile')}
-          className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors ml-0.5"
+          onClick={() => setIsAgentOpen(true)}
+          className="p-2 bg-slate-900 text-white rounded-full transition-transform hover:scale-105 ml-0.5 touch-target flex items-center justify-center"
+          title="Open Agent Assistant"
         >
-          <User className="w-3.5 h-3.5" />
+          <Bot className="w-3.5 h-3.5 text-emerald-400" />
         </button>
       </div>
+
+      {/* Agent Chat Drawer Assistant */}
+      <AgentChatDrawer
+        isOpen={isAgentOpen}
+        onClose={() => setIsAgentOpen(false)}
+      />
 
       {/* Property Showcase / Editor / Delete Modal */}
       {selectedDraft && (

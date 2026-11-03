@@ -17,6 +17,22 @@ body {
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+}
+
+/* Safe Area Handling for iPhone Notches & Android Gesture Bars */
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 44px Minimum Touch Hit Area */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
 }
 
 /* Custom Scrollbars */
