@@ -112,7 +112,7 @@ export default function DashboardPage(): React.JSX.Element {
     }
   };
 
-  // Handle Global Search & Map Re-centering from Search & Suggestions
+  // Handle Global Search & Map Re-centering with Google Geocoder Priority
   const handleSearchQuery = async (query: string, coords?: { lat: number; lng: number }) => {
     setSearchQuery(query);
 
@@ -130,6 +130,29 @@ export default function DashboardPage(): React.JSX.Element {
       ? query
       : `${query}, Bengaluru, Karnataka`;
 
+    // Attempt 1: Google Maps Geocoder if loaded
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+      try {
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode(
+          {
+            address: searchQueryFormatted,
+            bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
+          },
+          (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+              const loc = results[0].geometry.location;
+              setMapCenter({ lat: loc.lat(), lng: loc.lng() });
+              return;
+            }
+          }
+        );
+      } catch (err) {
+        console.warn('Google geocoder search error:', err);
+      }
+    }
+
+    // Attempt 2: OpenStreetMap Nominatim Fallback
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQueryFormatted)}&limit=1`
@@ -143,7 +166,7 @@ export default function DashboardPage(): React.JSX.Element {
         }
       }
     } catch (err) {
-      console.warn('Geocoding search error:', err);
+      console.warn('Nominatim geocoding search error:', err);
     }
   };
 
