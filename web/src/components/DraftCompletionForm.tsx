@@ -5,7 +5,7 @@ import { Listing, DraftUpdatePayload } from '@/types';
 import { getMediaProxyUrl } from '@/lib/api';
 import {
   X, Check, MapPin, Building2, IndianRupee, Image as ImageIcon,
-  Search, Navigation, Edit3, Eye, ChevronLeft, ChevronRight, Phone, Trash2, Lock, FileText
+  Search, Navigation, Edit3, Eye, ChevronLeft, ChevronRight, Phone, Trash2, Lock, FileText, Sparkles
 } from 'lucide-react';
 
 interface SuggestionItem {
@@ -14,6 +14,20 @@ interface SuggestionItem {
   lat: string;
   lon: string;
 }
+
+// Popular Bengaluru Landmarks for Instant 0ms Autocomplete inside Modal
+const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
+  { place_id: 'bgl_1', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
+  { place_id: 'bgl_2', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
+  { place_id: 'bgl_3', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
+  { place_id: 'bgl_4', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
+  { place_id: 'bgl_5', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
+  { place_id: 'bgl_6', display_name: 'MG Road, Bengaluru', lat: '12.9756', lon: '77.6066' },
+  { place_id: 'bgl_7', display_name: 'Jayanagar, Bengaluru', lat: '12.9299', lon: '77.5824' },
+  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' },
+  { place_id: 'bgl_9', display_name: 'Marathahalli, Bengaluru', lat: '12.9592', lon: '77.6974' },
+  { place_id: 'bgl_10', display_name: 'Hebbal, Bengaluru', lat: '13.0359', lon: '77.5970' }
+];
 
 interface PropertyModalProps {
   property: Listing;
@@ -97,14 +111,22 @@ export default function DraftCompletionForm({
     }
   }, [selectedCoords]);
 
-  // Autocomplete Suggestions as User Types
+  // Autocomplete Suggestions as User Types + Instant Local Matches
   useEffect(() => {
-    if (!searchAddress.trim() || searchAddress.length < 2) {
-      setSuggestions([]);
-      setShowDropdown(false);
+    if (!searchAddress.trim()) {
+      setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
       return;
     }
 
+    // 1. Instant Local Matching (0ms delay)
+    const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
+      item.display_name.toLowerCase().includes(searchAddress.toLowerCase())
+    );
+
+    setSuggestions(localMatches);
+    setShowDropdown(true);
+
+    // 2. Fetch Online Nominatim Autocomplete
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
@@ -117,15 +139,21 @@ export default function DraftCompletionForm({
         );
         if (res.ok) {
           const data: SuggestionItem[] = await res.json();
-          setSuggestions(data || []);
-          setShowDropdown((data || []).length > 0);
+          if (data && data.length > 0) {
+            const combined = [...data, ...localMatches];
+            const unique = combined.filter(
+              (v, i, a) => a.findIndex((t) => t.display_name.split(',')[0] === v.display_name.split(',')[0]) === i
+            );
+            setSuggestions(unique.slice(0, 6));
+            setShowDropdown(true);
+          }
         }
       } catch (err) {
         console.warn('Autocomplete fetch error:', err);
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [searchAddress]);
@@ -437,7 +465,7 @@ export default function DraftCompletionForm({
               </div>
             </div>
 
-            {/* Location Search Bar with Live Autocomplete Suggestions (Same as Header) */}
+            {/* Location Search Bar with Instant Autocomplete Suggestions */}
             <div ref={dropdownRef} className="relative bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
               <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1">
@@ -453,9 +481,13 @@ export default function DraftCompletionForm({
                   <input
                     type="text"
                     value={searchAddress}
-                    onChange={(e) => setSearchAddress(e.target.value)}
+                    onChange={(e) => {
+                      setSearchAddress(e.target.value);
+                      setShowDropdown(true);
+                    }}
                     onFocus={() => {
-                      if (suggestions.length > 0) setShowDropdown(true);
+                      if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
+                      setShowDropdown(true);
                     }}
                     placeholder="Search location, Indiranagar, Koramangala..."
                     className="w-full text-xs font-medium text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-400"
@@ -465,7 +497,7 @@ export default function DraftCompletionForm({
                       type="button"
                       onClick={() => {
                         setSearchAddress('');
-                        setSuggestions([]);
+                        setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                         setShowDropdown(false);
                       }}
                       className="p-1 text-slate-400 hover:text-slate-600 rounded-full"
@@ -480,7 +512,10 @@ export default function DraftCompletionForm({
               {showDropdown && (
                 <div className="absolute top-full left-3 right-3 mt-1 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    <span>Location Suggestions</span>
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-brand-500" />
+                      <span>Popular Locations</span>
+                    </span>
                     {isSearching && <span className="text-brand-500 animate-pulse">Searching...</span>}
                   </div>
                   <div className="max-h-52 overflow-y-auto divide-y divide-slate-50">
