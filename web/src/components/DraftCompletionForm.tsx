@@ -23,6 +23,7 @@ interface PropertyModalProps {
   onDelete?: (id: string) => Promise<void>;
   onUpdateCoords?: (coords: { lat: number; lng: number }) => void;
   initialEditMode?: boolean;
+  isAdmin?: boolean;
 }
 
 export default function DraftCompletionForm({
@@ -32,13 +33,16 @@ export default function DraftCompletionForm({
   onSubmit,
   onDelete,
   onUpdateCoords,
-  initialEditMode = false
+  initialEditMode = false,
+  isAdmin = false
 }: PropertyModalProps) {
   // Early return if property object is undefined
   if (!property) return null;
 
   const isDraft = property?.status === 'draft';
-  const [isEditMode, setIsEditMode] = useState<boolean>(initialEditMode || isDraft);
+
+  // Guests are restricted to View Mode only
+  const [isEditMode, setIsEditMode] = useState<boolean>(isAdmin ? (initialEditMode || isDraft) : false);
 
   // Active Photo Index in Gallery Carousel
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
@@ -156,7 +160,7 @@ export default function DraftCompletionForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rentAmount || !configuration) return;
+    if (!isAdmin || !rentAmount || !configuration) return;
 
     setIsSubmitting(true);
     try {
@@ -199,8 +203,8 @@ export default function DraftCompletionForm({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Delete Listing Button */}
-            {onDelete && (
+            {/* Delete Listing Button - ADMIN ONLY */}
+            {isAdmin && onDelete && (
               <button
                 onClick={async () => {
                   if (confirm('Are you sure you want to delete this property listing?')) {
@@ -215,23 +219,25 @@ export default function DraftCompletionForm({
               </button>
             )}
 
-            {/* Toggle Edit Button on Top Bar */}
-            <button
-              onClick={() => setIsEditMode(!isEditMode)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-brand-500 text-xs font-bold text-slate-700 hover:text-brand-500 bg-slate-50 transition-all"
-            >
-              {isEditMode ? (
-                <>
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>View Details</span>
-                </>
-              ) : (
-                <>
-                  <Edit3 className="w-3.5 h-3.5 text-brand-500" />
-                  <span>Edit Property</span>
-                </>
-              )}
-            </button>
+            {/* Toggle Edit Button - ADMIN ONLY */}
+            {isAdmin && (
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-brand-500 text-xs font-bold text-slate-700 hover:text-brand-500 bg-slate-50 transition-all"
+              >
+                {isEditMode ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Details</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-3.5 h-3.5 text-brand-500" />
+                    <span>Edit Property</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               onClick={onClose}
@@ -242,7 +248,7 @@ export default function DraftCompletionForm({
           </div>
         </div>
 
-        {/* ----------------- MODE 1: VIEW DETAILS MODE ----------------- */}
+        {/* ----------------- MODE 1: VIEW DETAILS MODE (GUEST & ADMIN) ----------------- */}
         {!isEditMode ? (
           <div className="space-y-4">
             {/* Photo Gallery Carousel / Showcase */}
@@ -350,30 +356,34 @@ export default function DraftCompletionForm({
                 </p>
               </div>
 
-              {/* Private Admin Notes */}
-              <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200/80 mb-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 block mb-1 flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-600" />
-                  <span>Admin Notes (Private - Hidden from Public)</span>
-                </span>
-                <p className="text-xs text-amber-900 font-semibold leading-relaxed">
-                  {property.admin_notes || 'Owner Contact: +91 9876543210. Key available with security.'}
-                </p>
-              </div>
+              {/* Private Admin Notes - VISIBLE ONLY TO ADMIN */}
+              {isAdmin && property.admin_notes && (
+                <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200/80 mb-3">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 block mb-1 flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-amber-600" />
+                    <span>Admin Notes (Private - Hidden from Public)</span>
+                  </span>
+                  <p className="text-xs text-amber-900 font-semibold leading-relaxed">
+                    {property.admin_notes}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setIsEditMode(true)}
-                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
-              >
-                <Edit3 className="w-4 h-4 text-brand-500" />
-                <span>Edit Property</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Edit3 className="w-4 h-4 text-brand-500" />
+                  <span>Edit Property</span>
+                </button>
+              )}
 
               <button
-                onClick={() => alert('Agent Contacted!')}
+                onClick={() => alert('Partner Contacted!')}
                 className="flex-1 py-3 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
               >
                 <Phone className="w-4 h-4" />
@@ -382,7 +392,7 @@ export default function DraftCompletionForm({
             </div>
           </div>
         ) : (
-          /* ----------------- MODE 2: EDIT PROPERTY MODE ----------------- */
+          /* ----------------- MODE 2: EDIT PROPERTY MODE (ADMIN ONLY) ----------------- */
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {/* Real Media Preview Section */}
             <div>

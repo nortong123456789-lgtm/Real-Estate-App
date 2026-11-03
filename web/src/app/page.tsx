@@ -10,6 +10,7 @@ import PropertyCard from '@/components/PropertyCard';
 import DraftCompletionForm from '@/components/DraftCompletionForm';
 import AgentChatDrawer from '@/components/AgentChatDrawer';
 import FilterBottomSheet, { FilterState } from '@/components/FilterBottomSheet';
+import LoginModal from '@/components/LoginModal';
 import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot, SlidersHorizontal } from 'lucide-react';
 
 export default function DashboardPage(): React.JSX.Element {
@@ -21,6 +22,10 @@ export default function DashboardPage(): React.JSX.Element {
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+
+  // Authentication & Role State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Filters State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -35,6 +40,21 @@ export default function DashboardPage(): React.JSX.Element {
   const [currentView, setCurrentView] = useState<'properties' | 'map' | 'drafts'>('properties');
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = sessionStorage.getItem('apnaghar_role');
+      if (role === 'admin') setIsAdmin(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('apnaghar_role');
+    }
+    setIsAdmin(false);
+    setCurrentView('properties');
+  };
 
   const loadData = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -162,10 +182,17 @@ export default function DashboardPage(): React.JSX.Element {
       {/* Header Bar */}
       <Header
         draftsCount={drafts.length}
+        isAdmin={isAdmin}
         onOpenDrafts={() => {
-          setCurrentView('drafts');
-          if (drafts.length > 0 && !selectedDraft) setSelectedDraft(drafts[0]);
+          if (isAdmin) {
+            setCurrentView('drafts');
+            if (drafts.length > 0 && !selectedDraft) setSelectedDraft(drafts[0]);
+          } else {
+            setIsLoginModalOpen(true);
+          }
         }}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onLogout={handleLogout}
         onSearchQuery={handleSearchQuery}
       />
 
@@ -185,17 +212,19 @@ export default function DashboardPage(): React.JSX.Element {
 
       {/* Main Content Workspace */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-2.5 sm:p-5 md:p-6 flex flex-col md:flex-row gap-4 sm:gap-6">
-        {/* Left Column: Drafts Queue (Desktop Sidebar) */}
-        <div
-          className={`w-full md:w-80 lg:w-96 flex-shrink-0 ${
-            currentView === 'drafts' ? 'block' : 'hidden md:block'
-          }`}
-        >
-          <DraftsList
-            drafts={drafts}
-            onSelectDraft={handleSelectProperty}
-          />
-        </div>
+        {/* Left Column: Drafts Queue (Desktop Sidebar - VISIBLE ONLY TO ADMIN) */}
+        {isAdmin && (
+          <div
+            className={`w-full md:w-80 lg:w-96 flex-shrink-0 ${
+              currentView === 'drafts' ? 'block' : 'hidden md:block'
+            }`}
+          >
+            <DraftsList
+              drafts={drafts}
+              onSelectDraft={handleSelectProperty}
+            />
+          </div>
+        )}
 
         {/* Right Column: Main Content (Listings Grid OR Vector Map) */}
         <div
@@ -317,13 +346,15 @@ export default function DashboardPage(): React.JSX.Element {
               />
             </div>
           ) : (
-            /* Drafts Mobile Fallback */
-            <div className="md:hidden">
-              <DraftsList
-                drafts={drafts}
-                onSelectDraft={handleSelectProperty}
-              />
-            </div>
+            /* Drafts Mobile Fallback (Admin Only) */
+            isAdmin ? (
+              <div className="md:hidden">
+                <DraftsList
+                  drafts={drafts}
+                  onSelectDraft={handleSelectProperty}
+                />
+              </div>
+            ) : null
           )}
         </div>
       </main>
@@ -354,17 +385,20 @@ export default function DashboardPage(): React.JSX.Element {
           <span>Map</span>
         </button>
 
-        <button
-          onClick={() => setCurrentView('drafts')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black flex items-center gap-1 transition-all ${
-            currentView === 'drafts'
-              ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <PlusCircle className="w-3.5 h-3.5" />
-          <span>Drafts ({drafts.length})</span>
-        </button>
+        {/* Drafts Tab - VISIBLE ONLY TO ADMIN */}
+        {isAdmin && (
+          <button
+            onClick={() => setCurrentView('drafts')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-black flex items-center gap-1 transition-all ${
+              currentView === 'drafts'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Drafts ({drafts.length})</span>
+          </button>
+        )}
 
         <button
           onClick={() => setIsAgentOpen(true)}
@@ -374,6 +408,13 @@ export default function DashboardPage(): React.JSX.Element {
           <Bot className="w-3.5 h-3.5 text-emerald-400" />
         </button>
       </div>
+
+      {/* Admin Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccessLogin={() => setIsAdmin(true)}
+      />
 
       {/* Filter Bottom Sheet Modal */}
       <FilterBottomSheet
@@ -402,6 +443,7 @@ export default function DashboardPage(): React.JSX.Element {
         <DraftCompletionForm
           property={selectedDraft}
           selectedCoords={selectedCoords}
+          isAdmin={isAdmin}
           onClose={() => setSelectedDraft(null)}
           onSubmit={handleCompleteDraft}
           onDelete={handleDeleteListing}

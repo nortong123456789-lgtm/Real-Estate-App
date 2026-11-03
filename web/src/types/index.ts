@@ -34,6 +34,9 @@ export interface DraftUpdatePayload {
 
 export interface HeaderProps {
   draftsCount: number;
+  isAdmin?: boolean;
   onOpenDrafts: () => void;
+  onOpenLoginModal?: () => void;
+  onLogout?: () => void;
   onSearchQuery?: (query: string, coords?: { lat: number; lng: number }) => void;
 }
