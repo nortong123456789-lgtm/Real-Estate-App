@@ -9,7 +9,8 @@ import DraftsList from '@/components/DraftsList';
 import PropertyCard from '@/components/PropertyCard';
 import DraftCompletionForm from '@/components/DraftCompletionForm';
 import AgentChatDrawer from '@/components/AgentChatDrawer';
-import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot } from 'lucide-react';
+import FilterBottomSheet, { FilterState } from '@/components/FilterBottomSheet';
+import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot, SlidersHorizontal } from 'lucide-react';
 
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
@@ -20,6 +21,15 @@ export default function DashboardPage(): React.JSX.Element {
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+
+  // Filters State
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterState, setFilterState] = useState<FilterState>({
+    minPrice: '',
+    maxPrice: '',
+    propertyType: 'All Types',
+    selectedAmenities: []
+  });
 
   // View Switcher ('properties' | 'map' | 'drafts')
   const [currentView, setCurrentView] = useState<'properties' | 'map' | 'drafts'>('properties');
@@ -115,14 +125,37 @@ export default function DashboardPage(): React.JSX.Element {
     }
   };
 
-  // Filter active listings by search query
+  // Filter active listings by search query and FilterState
   const filteredListings = activeListings.filter((item) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
-    const descMatch = item.description?.toLowerCase().includes(q) ?? false;
-    return configMatch || descMatch;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
+      const descMatch = item.description?.toLowerCase().includes(q) ?? false;
+      if (!configMatch && !descMatch) return false;
+    }
+
+    if (filterState.minPrice !== '' && item.rent_amount && item.rent_amount < Number(filterState.minPrice)) {
+      return false;
+    }
+    if (filterState.maxPrice !== '' && item.rent_amount && item.rent_amount > Number(filterState.maxPrice)) {
+      return false;
+    }
+
+    if (filterState.propertyType !== 'All Types' && item.configuration) {
+      const prefix = filterState.propertyType.split(' ')[0].toLowerCase();
+      if (!item.configuration.toLowerCase().includes(prefix)) {
+        return false;
+      }
+    }
+
+    return true;
   });
+
+  const hasActiveFilters =
+    filterState.minPrice !== '' ||
+    filterState.maxPrice !== '' ||
+    filterState.propertyType !== 'All Types' ||
+    filterState.selectedAmenities.length > 0;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans overflow-x-hidden pb-20 md:pb-8">
@@ -184,6 +217,21 @@ export default function DashboardPage(): React.JSX.Element {
 
                 <div className="flex items-center gap-1.5">
                   <button
+                    onClick={() => setIsFilterOpen(true)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 transition-all ${
+                      hasActiveFilters
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Filters</span>
+                    {hasActiveFilters && (
+                      <span className="w-2 h-2 rounded-full bg-brand-500"></span>
+                    )}
+                  </button>
+
+                  <button
                     onClick={() => loadData(true)}
                     className="p-1.5 text-slate-500 hover:text-slate-900 bg-white rounded-full border border-slate-200 transition-colors shadow-2xs"
                     title="Refresh Data"
@@ -203,9 +251,9 @@ export default function DashboardPage(): React.JSX.Element {
               {filteredListings.length === 0 ? (
                 <div className="bg-white rounded-3xl p-8 text-center border border-slate-100 text-slate-400 shadow-xs">
                   <Building className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                  <p className="text-sm font-bold text-slate-800">No active listings match your search</p>
+                  <p className="text-sm font-bold text-slate-800">No active listings match your search/filters</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                    Select a draft from the sidebar to set location and publish live!
+                    Try adjusting your price range or property type in filters!
                   </p>
                 </div>
               ) : (
@@ -326,6 +374,22 @@ export default function DashboardPage(): React.JSX.Element {
           <Bot className="w-3.5 h-3.5 text-emerald-400" />
         </button>
       </div>
+
+      {/* Filter Bottom Sheet Modal */}
+      <FilterBottomSheet
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        filters={filterState}
+        onApplyFilters={(newFilters) => setFilterState(newFilters)}
+        onResetFilters={() =>
+          setFilterState({
+            minPrice: '',
+            maxPrice: '',
+            propertyType: 'All Types',
+            selectedAmenities: []
+          })
+        }
+      />
 
       {/* Agent Chat Drawer Assistant */}
       <AgentChatDrawer
