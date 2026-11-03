@@ -38,18 +38,26 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Google Places + Nominatim Autocomplete Engine with Bengaluru Location Bias
+  // Google Places + Nominatim Autocomplete Engine with Search Action Item
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
       return;
     }
 
+    // Always include a direct search action item for the exact user query
+    const directActionItem: SuggestionItem = {
+      place_id: `search_${Date.now()}`,
+      display_name: `Search maps for "${query}"`,
+      isGooglePlace: true
+    };
+
     // 1. Instant Local Match (0ms)
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(query.toLowerCase())
     );
-    setSuggestions(localMatches);
+
+    setSuggestions([directActionItem, ...localMatches]);
     setShowDropdown(true);
 
     const timer = setTimeout(() => {
@@ -75,7 +83,7 @@ export default function Header({
                   display_name: p.description,
                   isGooglePlace: true
                 }));
-                setSuggestions(googleResults.slice(0, 6));
+                setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
                 setShowDropdown(true);
                 setIsLoading(false);
                 return;
@@ -96,7 +104,7 @@ export default function Header({
         .then((res) => (res.ok ? res.json() : []))
         .then((data: SuggestionItem[]) => {
           if (data && data.length > 0) {
-            const combined = [...data, ...localMatches];
+            const combined = [directActionItem, ...data, ...localMatches];
             const unique = combined.filter(
               (v, i, a) => a.findIndex((t) => t.display_name.split(',')[0] === v.display_name.split(',')[0]) === i
             );
@@ -123,32 +131,31 @@ export default function Header({
   }, []);
 
   const handleSelectSuggestion = (item: SuggestionItem) => {
-    const cleanName = item.display_name.split(',')[0];
+    let cleanName = item.display_name.replace('Search maps for "', '').replace('"', '');
+    cleanName = cleanName.split(',')[0];
     setQuery(cleanName);
     setShowDropdown(false);
 
-    // If Google Place ID, resolve exact lat/lng via Geocoder with Bengaluru Bounds
-    if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+    // If Google Place ID or Search Action Item, resolve via Google Geocoder
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode(
-        {
-          placeId: String(item.place_id),
-          bounds: {
-            north: 13.2500,
-            south: 12.7000,
-            east: 77.8500,
-            west: 77.3500
+      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('search_')
+        ? { placeId: String(item.place_id) }
+        : {
+            address: `${cleanName}, Bengaluru, Karnataka`,
+            bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
+          };
+
+      geocoder.geocode(geocodeTarget, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          if (onSearchQuery) {
+            onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
           }
-        },
-        (results, status) => {
-          if (status === 'OK' && results && results[0]) {
-            const loc = results[0].geometry.location;
-            if (onSearchQuery) {
-              onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
-            }
-          }
+        } else if (onSearchQuery) {
+          onSearchQuery(cleanName);
         }
-      );
+      });
       return;
     }
 
@@ -206,11 +213,21 @@ export default function Header({
                   type="text"
                   value={query}
                   onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && query.trim()) {
+                      e.preventDefault();
+                      handleSelectSuggestion({
+                        place_id: `search_enter_${Date.now()}`,
+                        display_name: query,
+                        isGooglePlace: true
+                      });
+                    }
+                  }}
                   onFocus={() => {
                     if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                     setShowDropdown(true);
                   }}
-                  placeholder="Where to? Search house, landmark, area..."
+                  placeholder="Where to? Search house, apartment, area..."
                   className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-500 truncate"
                 />
               </div>
@@ -247,10 +264,7 @@ export default function Header({
                     <Navigation className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-500 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs font-bold text-slate-800 group-hover:text-brand-600 line-clamp-1">
-                        {item.display_name.split(',')[0]}
-                      </p>
-                      <p className="text-[10px] text-slate-400 line-clamp-1">
-                        {item.display_name.split(',').slice(1).join(',')}
+                        {item.display_name}
                       </p>
                     </div>
                   </button>

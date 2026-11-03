@@ -117,18 +117,24 @@ export default function DraftCompletionForm({
       return;
     }
 
+    const directActionItem: SuggestionItem = {
+      place_id: `search_modal_${Date.now()}`,
+      display_name: `Search maps for "${searchAddress}"`,
+      isGooglePlace: true
+    };
+
     // 1. Instant Local Match (0ms)
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(searchAddress.toLowerCase())
     );
 
-    setSuggestions(localMatches);
+    setSuggestions([directActionItem, ...localMatches]);
     setShowDropdown(true);
 
     const timer = setTimeout(() => {
       setIsSearching(true);
 
-      // Attempt A: Google Places Autocomplete Service with strict 50km Bengaluru Bias
+      // Attempt A: Google Places Autocomplete Service
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
@@ -137,7 +143,7 @@ export default function DraftCompletionForm({
               input: searchAddress,
               locationBias: {
                 center: { lat: 12.9716, lng: 77.5946 },
-                radius: 50000 // 50 km Bengaluru radius
+                radius: 50000
               },
               componentRestrictions: { country: 'in' }
             },
@@ -148,7 +154,7 @@ export default function DraftCompletionForm({
                   display_name: p.description,
                   isGooglePlace: true
                 }));
-                setSuggestions(googleResults.slice(0, 6));
+                setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
                 setShowDropdown(true);
                 setIsSearching(false);
                 return;
@@ -169,7 +175,7 @@ export default function DraftCompletionForm({
         .then((res) => (res.ok ? res.json() : []))
         .then((data: SuggestionItem[]) => {
           if (data && data.length > 0) {
-            const combined = [...data, ...localMatches];
+            const combined = [directActionItem, ...data, ...localMatches];
             const unique = combined.filter(
               (v, i, a) => a.findIndex((t) => t.display_name.split(',')[0] === v.display_name.split(',')[0]) === i
             );
@@ -196,39 +202,36 @@ export default function DraftCompletionForm({
   }, []);
 
   const handleSelectSuggestion = (item: SuggestionItem) => {
-    const cleanName = item.display_name.split(',')[0];
+    let cleanName = item.display_name.replace('Search maps for "', '').replace('"', '');
+    cleanName = cleanName.split(',')[0];
     setSearchAddress(cleanName);
     setShowDropdown(false);
 
-    // Resolve Google Place ID if Google Maps Geocoder is loaded with Bengaluru Bounds
-    if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+    // Resolve Google Place ID or direct geocode via Geocoder
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode(
-        {
-          placeId: String(item.place_id),
-          bounds: {
-            north: 13.2500,
-            south: 12.7000,
-            east: 77.8500,
-            west: 77.3500
-          }
-        },
-        (results, status) => {
-          if (status === 'OK' && results && results[0]) {
-            const loc = results[0].geometry.location;
-            const newLat = loc.lat();
-            const newLng = loc.lng();
+      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('search_')
+        ? { placeId: String(item.place_id) }
+        : {
+            address: `${cleanName}, Bengaluru, Karnataka`,
+            bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
+          };
 
-            setLatitude(newLat);
-            setLongitude(newLng);
-            setSearchFeedback(`Pin placed at: ${cleanName}`);
+      geocoder.geocode(geocodeTarget, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          const newLat = loc.lat();
+          const newLng = loc.lng();
 
-            if (onUpdateCoords) {
-              onUpdateCoords({ lat: newLat, lng: newLng });
-            }
+          setLatitude(newLat);
+          setLongitude(newLng);
+          setSearchFeedback(`Pin placed at: ${cleanName}`);
+
+          if (onUpdateCoords) {
+            onUpdateCoords({ lat: newLat, lng: newLng });
           }
         }
-      );
+      });
       return;
     }
 
@@ -545,6 +548,16 @@ export default function DraftCompletionForm({
                       setSearchAddress(e.target.value);
                       setShowDropdown(true);
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchAddress.trim()) {
+                        e.preventDefault();
+                        handleSelectSuggestion({
+                          place_id: `search_modal_enter_${Date.now()}`,
+                          display_name: searchAddress,
+                          isGooglePlace: true
+                        });
+                      }
+                    }}
                     onFocus={() => {
                       if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                       setShowDropdown(true);
@@ -589,10 +602,7 @@ export default function DraftCompletionForm({
                         <Navigation className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-500 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-xs font-bold text-slate-800 group-hover:text-brand-600 line-clamp-1">
-                            {item.display_name.split(',')[0]}
-                          </p>
-                          <p className="text-[10px] text-slate-400 line-clamp-1">
-                            {item.display_name.split(',').slice(1).join(',')}
+                            {item.display_name}
                           </p>
                         </div>
                       </button>
