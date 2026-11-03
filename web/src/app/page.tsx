@@ -13,6 +13,8 @@ import FilterBottomSheet, { FilterState } from '@/components/FilterBottomSheet';
 import LoginModal from '@/components/LoginModal';
 import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot, SlidersHorizontal } from 'lucide-react';
 
+const SPEC_KEYWORDS = ['bhk', 'villa', 'studio', 'apartment', 'house', 'penthouse'];
+
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
   const [activeListings, setActiveListings] = useState<Listing[]>([]);
@@ -148,10 +150,14 @@ export default function DashboardPage(): React.JSX.Element {
   // Filter active listings by search query and FilterState
   const filteredListings = activeListings.filter((item) => {
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
-      const descMatch = item.description?.toLowerCase().includes(q) ?? false;
-      if (!configMatch && !descMatch) return false;
+      const q = searchQuery.toLowerCase().trim();
+      const isSpecQuery = SPEC_KEYWORDS.some((kw) => q.includes(kw));
+
+      if (isSpecQuery) {
+        const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
+        const descMatch = item.description?.toLowerCase().includes(q) ?? false;
+        if (!configMatch && !descMatch) return false;
+      }
     }
 
     if (filterState.minPrice !== '' && item.rent_amount && item.rent_amount < Number(filterState.minPrice)) {
