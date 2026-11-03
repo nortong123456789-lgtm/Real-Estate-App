@@ -38,20 +38,7 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Google Places Autocomplete Session Token
-  const sessionTokenRef = useRef<any>(null);
-
-  // Initialize Session Token on Focus/Typing
-  const getOrCreateSessionToken = () => {
-    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
-      if (!sessionTokenRef.current && window.google.maps.places.AutocompleteSessionToken) {
-        sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
-      }
-    }
-    return sessionTokenRef.current;
-  };
-
-  // Google Places Autocomplete Engine (Spec Compliant: LocationBias, Language, Region, SessionToken, Country Restrictions)
+  // Autocomplete Suggestions Engine
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -75,42 +62,35 @@ export default function Header({
     const timer = setTimeout(() => {
       setIsLoading(true);
 
-      const token = getOrCreateSessionToken();
-
-      // Attempt A: Google Places Autocomplete Service (Native App Parity)
+      // Attempt A: Google Places Autocomplete Service
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
-          const requestOptions: any = {
-            input: query,
-            locationBias: {
-              center: { lat: 12.9716, lng: 77.5946 },
-              radius: 50000 // 50 km Bengaluru radius
+          service.getPlacePredictions(
+            {
+              input: query,
+              locationBias: {
+                center: { lat: 12.9716, lng: 77.5946 },
+                radius: 50000
+              },
+              componentRestrictions: { country: 'in' }
             },
-            language: 'en',
-            region: 'in',
-            componentRestrictions: { country: 'in' }
-          };
-
-          if (token) {
-            requestOptions.sessionToken = token;
-          }
-
-          service.getPlacePredictions(requestOptions, (predictions, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-              const googleResults: SuggestionItem[] = predictions.map((p) => ({
-                place_id: p.place_id,
-                display_name: p.description,
-                isGooglePlace: true
-              }));
-              setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
-              setShowDropdown(true);
-              setIsLoading(false);
-              return;
+            (predictions, status) => {
+              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                const googleResults: SuggestionItem[] = predictions.map((p) => ({
+                  place_id: p.place_id,
+                  display_name: p.description,
+                  isGooglePlace: true
+                }));
+                setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
+                setShowDropdown(true);
+                setIsLoading(false);
+                return;
+              }
             }
-          });
+          );
         } catch (err) {
-          console.warn('Google Places autocomplete failed, falling back to Nominatim', err);
+          console.warn('Google Places autocomplete error:', err);
         }
       }
 
@@ -149,26 +129,15 @@ export default function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectSuggestion = (item: SuggestionItem) => {
-    let cleanName = item.display_name.replace('Search maps for "', '').replace('"', '');
-    cleanName = cleanName.split(',')[0];
+  const handleTriggerSearch = (searchString: string, placeId?: string | number) => {
+    let cleanName = searchString.replace('Search maps for "', '').replace('"', '').trim();
     setQuery(cleanName);
     setShowDropdown(false);
 
-    // Reset session token after selection
-    sessionTokenRef.current = null;
-
-    // If Google Place ID or Search Action Item, resolve via Google Geocoder
-    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+    // If Google Place ID exists and Google Geocoder is loaded
+    if (placeId && !String(placeId).startsWith('search_') && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('search_')
-        ? { placeId: String(item.place_id) }
-        : {
-            address: `${cleanName}, Bengaluru, Karnataka`,
-            bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
-          };
-
-      geocoder.geocode(geocodeTarget, (results, status) => {
+      geocoder.geocode({ placeId: String(placeId) }, (results, status) => {
         if (status === 'OK' && results && results[0]) {
           const loc = results[0].geometry.location;
           if (onSearchQuery) {
@@ -181,14 +150,20 @@ export default function Header({
       return;
     }
 
-    if (item.lat && item.lon && onSearchQuery) {
-      onSearchQuery(cleanName, {
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon)
-      });
-    } else if (onSearchQuery) {
+    if (onSearchQuery) {
       onSearchQuery(cleanName);
     }
+  };
+
+  const handleSelectSuggestion = (item: SuggestionItem) => {
+    if (item.lat && item.lon && onSearchQuery) {
+      const cleanName = item.display_name.split(',')[0];
+      setQuery(cleanName);
+      setShowDropdown(false);
+      onSearchQuery(cleanName, { lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
+      return;
+    }
+    handleTriggerSearch(item.display_name, item.place_id);
   };
 
   const handleInputChange = (value: string) => {
@@ -203,7 +178,6 @@ export default function Header({
     setQuery('');
     setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
     setShowDropdown(false);
-    sessionTokenRef.current = null;
     if (onSearchQuery) {
       onSearchQuery('');
     }
@@ -239,15 +213,10 @@ export default function Header({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && query.trim()) {
                       e.preventDefault();
-                      handleSelectSuggestion({
-                        place_id: `search_enter_${Date.now()}`,
-                        display_name: query,
-                        isGooglePlace: true
-                      });
+                      handleTriggerSearch(query);
                     }
                   }}
                   onFocus={() => {
-                    getOrCreateSessionToken();
                     if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                     setShowDropdown(true);
                   }}
@@ -261,9 +230,15 @@ export default function Header({
                   <X className="w-3 h-3" />
                 </button>
               ) : (
-                <div className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (query.trim()) handleTriggerSearch(query);
+                  }}
+                  className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0 cursor-pointer"
+                >
                   <Search className="w-3 h-3" />
-                </div>
+                </button>
               )}
             </div>
           </div>
@@ -274,7 +249,7 @@ export default function Header({
               <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-brand-500" />
-                  <span>Google Places / Location Suggestions</span>
+                  <span>Location Search Suggestions</span>
                 </span>
                 {isLoading && <span className="text-brand-500 animate-pulse">Searching...</span>}
               </div>
