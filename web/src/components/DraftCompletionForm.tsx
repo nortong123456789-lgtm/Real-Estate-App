@@ -110,7 +110,7 @@ export default function DraftCompletionForm({
     }
   }, [selectedCoords]);
 
-  // Autocomplete Suggestions with Google Places + Nominatim Fallback
+  // Autocomplete Suggestions with Google Places + Bengaluru Spatial Bias
   useEffect(() => {
     if (!searchAddress.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -128,13 +128,17 @@ export default function DraftCompletionForm({
     const timer = setTimeout(() => {
       setIsSearching(true);
 
-      // Attempt A: Google Places Autocomplete Service
+      // Attempt A: Google Places Autocomplete Service with strict 50km Bengaluru Bias
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
           service.getPlacePredictions(
             {
               input: searchAddress,
+              locationBias: {
+                center: { lat: 12.9716, lng: 77.5946 },
+                radius: 50000 // 50 km Bengaluru radius
+              },
               componentRestrictions: { country: 'in' }
             },
             (predictions, status) => {
@@ -196,24 +200,35 @@ export default function DraftCompletionForm({
     setSearchAddress(cleanName);
     setShowDropdown(false);
 
-    // Resolve Google Place ID if Google Maps Geocoder is loaded
+    // Resolve Google Place ID if Google Maps Geocoder is loaded with Bengaluru Bounds
     if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ placeId: String(item.place_id) }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location;
-          const newLat = loc.lat();
-          const newLng = loc.lng();
+      geocoder.geocode(
+        {
+          placeId: String(item.place_id),
+          bounds: {
+            north: 13.2500,
+            south: 12.7000,
+            east: 77.8500,
+            west: 77.3500
+          }
+        },
+        (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const loc = results[0].geometry.location;
+            const newLat = loc.lat();
+            const newLng = loc.lng();
 
-          setLatitude(newLat);
-          setLongitude(newLng);
-          setSearchFeedback(`Pin placed at: ${cleanName}`);
+            setLatitude(newLat);
+            setLongitude(newLng);
+            setSearchFeedback(`Pin placed at: ${cleanName}`);
 
-          if (onUpdateCoords) {
-            onUpdateCoords({ lat: newLat, lng: newLng });
+            if (onUpdateCoords) {
+              onUpdateCoords({ lat: newLat, lng: newLng });
+            }
           }
         }
-      });
+      );
       return;
     }
 

@@ -38,7 +38,7 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Google Places + Nominatim Autocomplete Engine
+  // Google Places + Nominatim Autocomplete Engine with Bengaluru Location Bias
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -55,13 +55,17 @@ export default function Header({
     const timer = setTimeout(() => {
       setIsLoading(true);
 
-      // Attempt A: Google Places Autocomplete Service if loaded
+      // Attempt A: Google Places Autocomplete Service with strict 50km Bengaluru Bias
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
           service.getPlacePredictions(
             {
               input: query,
+              locationBias: {
+                center: { lat: 12.9716, lng: 77.5946 },
+                radius: 50000 // 50 km Bengaluru radius
+              },
               componentRestrictions: { country: 'in' }
             },
             (predictions, status) => {
@@ -123,17 +127,28 @@ export default function Header({
     setQuery(cleanName);
     setShowDropdown(false);
 
-    // If Google Place ID, resolve lat/lng via Geocoder
+    // If Google Place ID, resolve exact lat/lng via Geocoder with Bengaluru Bounds
     if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ placeId: String(item.place_id) }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location;
-          if (onSearchQuery) {
-            onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
+      geocoder.geocode(
+        {
+          placeId: String(item.place_id),
+          bounds: {
+            north: 13.2500,
+            south: 12.7000,
+            east: 77.8500,
+            west: 77.3500
+          }
+        },
+        (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const loc = results[0].geometry.location;
+            if (onSearchQuery) {
+              onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
+            }
           }
         }
-      });
+      );
       return;
     }
 
