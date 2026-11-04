@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, PlusCircle, Home, X, Navigation, ShieldCheck, LogOut, Sparkles, MapPin, Clock } from 'lucide-react';
+import { Search, User, PlusCircle, Home, X, Navigation, ShieldCheck, LogOut, Sparkles, MapPin } from 'lucide-react';
 import { HeaderProps } from '@/types';
 
 interface SuggestionItem {
@@ -38,7 +38,6 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Google Places Autocomplete Session Token
   const sessionTokenRef = useRef<any>(null);
 
   const getOrCreateSessionToken = () => {
@@ -50,7 +49,7 @@ export default function Header({
     return sessionTokenRef.current;
   };
 
-  // Google Places + Nominatim Autocomplete Engine with Native Google Maps Dropdown Layout
+  // Autocomplete Engine supporting Google Places API + Nominatim + Direct Search
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -60,12 +59,11 @@ export default function Header({
     const directActionItem: SuggestionItem = {
       place_id: `search_${Date.now()}`,
       main_text: query,
-      secondary_text: 'Search map location',
+      secondary_text: 'Search map for this location',
       display_name: query,
       isGooglePlace: true
     };
 
-    // 1. Instant Local Match (0ms)
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(query.toLowerCase())
     );
@@ -77,7 +75,7 @@ export default function Header({
       setIsLoading(true);
       const token = getOrCreateSessionToken();
 
-      // Attempt A: Google Places Autocomplete Service (Exact Google Maps Parity)
+      // Attempt A: Google Places Autocomplete Service
       if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
@@ -85,16 +83,14 @@ export default function Header({
             input: query,
             locationBias: {
               center: { lat: 12.9716, lng: 77.5946 },
-              radius: 50000 // 50 km Bengaluru radius
+              radius: 50000
             },
             language: 'en',
             region: 'in',
             componentRestrictions: { country: 'in' }
           };
 
-          if (token) {
-            requestOptions.sessionToken = token;
-          }
+          if (token) requestOptions.sessionToken = token;
 
           service.getPlacePredictions(requestOptions, (predictions, status) => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
@@ -112,7 +108,7 @@ export default function Header({
             }
           });
         } catch (err) {
-          console.warn('Google Places autocomplete failed, falling back to Nominatim', err);
+          console.warn('Google Places autocomplete failed, falling back', err);
         }
       }
 
@@ -143,7 +139,7 @@ export default function Header({
         })
         .catch((err) => console.warn(err))
         .finally(() => setIsLoading(false));
-    }, 250);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -165,7 +161,7 @@ export default function Header({
     setShowDropdown(false);
     sessionTokenRef.current = null;
 
-    // If Google Place ID, resolve exact lat/lng via Geocoder
+    // If Google Place ID, resolve via Geocoder
     if (item.isGooglePlace && typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
       const geocodeTarget = String(item.place_id).startsWith('search_')
@@ -266,20 +262,33 @@ export default function Header({
                   <X className="w-3 h-3" />
                 </button>
               ) : (
-                <div className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (query.trim()) {
+                      handleSelectSuggestion({
+                        place_id: `search_btn_${Date.now()}`,
+                        main_text: query,
+                        display_name: query,
+                        isGooglePlace: true
+                      });
+                    }
+                  }}
+                  className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0 cursor-pointer"
+                >
                   <Search className="w-3 h-3" />
-                </div>
+                </button>
               )}
             </div>
           </div>
 
-          {/* Google Maps Styled Dropdown List */}
+          {/* Location Suggestions Dropdown */}
           {showDropdown && (
             <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-brand-500" />
-                  <span>Google Maps Location Search</span>
+                  <span>Location Suggestions</span>
                 </span>
                 {isLoading && <span className="text-brand-500 animate-pulse">Searching...</span>}
               </div>
