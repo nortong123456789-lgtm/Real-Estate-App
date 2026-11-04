@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
+import React, { useState, useEffect } from 'react';
+import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { Listing } from '@/types';
 import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight } from 'lucide-react';
 import { getMediaProxyUrl } from '@/lib/api';
@@ -16,6 +16,20 @@ interface MapComponentProps {
 }
 
 const BENGALURU_DEFAULT_CENTER = { lat: 12.9716, lng: 77.5946 };
+
+// Smooth Vector Map Panning Controller for Google Maps JS SDK
+function MapController({ center }: { center: { lat: number; lng: number } }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (map && center && typeof center.lat === 'number' && typeof center.lng === 'number') {
+      map.panTo(center);
+      map.setZoom(14);
+    }
+  }, [map, center]);
+
+  return null;
+}
 
 // Safe Price Formatter for iOS Safari
 function formatPrice(amount?: number | string | null): string {
@@ -54,6 +68,13 @@ export default function MapComponent({
 }: MapComponentProps) {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [forceOsmFallback, setForceOsmFallback] = useState<boolean>(false);
+
+  // Clear selected listing when map center changes to focus on new search location
+  useEffect(() => {
+    if (mapCenter) {
+      setSelectedListing(null);
+    }
+  }, [mapCenter]);
 
   const currentCenter = mapCenter || (selectedListing?.latitude && selectedListing?.longitude
     ? { lat: Number(selectedListing.latitude), lng: Number(selectedListing.longitude) }
@@ -112,7 +133,6 @@ export default function MapComponent({
           <APIProvider apiKey={apiKey}>
             <Map
               defaultCenter={BENGALURU_DEFAULT_CENTER}
-              center={currentCenter}
               defaultZoom={12}
               mapId="DEMO_MAP_ID"
               gestureHandling={'greedy'}
@@ -125,6 +145,9 @@ export default function MapComponent({
                 }
               }}
             >
+              {/* Map Viewport Panning Controller */}
+              <MapController center={currentCenter} />
+
               {/* Active Property Pins in Coral Brand Color */}
               {activeListings.map((listing) => (
                 (typeof listing.latitude === 'number' && typeof listing.longitude === 'number') ? (
@@ -159,7 +182,7 @@ export default function MapComponent({
                 />
               )}
 
-              {/* Info Window for Selected Active Listing with iOS Safety Guards */}
+              {/* Info Window for Selected Active Listing */}
               {selectedListing && typeof selectedListing.latitude === 'number' && typeof selectedListing.longitude === 'number' && (
                 <InfoWindow
                   position={{ lat: selectedListing.latitude, lng: selectedListing.longitude }}
