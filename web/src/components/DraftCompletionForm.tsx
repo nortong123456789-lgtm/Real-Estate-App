@@ -10,6 +10,8 @@ import {
 
 interface SuggestionItem {
   place_id: string | number;
+  main_text: string;
+  secondary_text?: string;
   display_name: string;
   lat?: string;
   lon?: string;
@@ -18,14 +20,12 @@ interface SuggestionItem {
 
 // Popular Bengaluru Landmarks
 const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
-  { place_id: 'bgl_1', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
-  { place_id: 'bgl_2', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
-  { place_id: 'bgl_3', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
-  { place_id: 'bgl_4', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
-  { place_id: 'bgl_5', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
-  { place_id: 'bgl_6', display_name: 'MG Road, Bengaluru', lat: '12.9756', lon: '77.6066' },
-  { place_id: 'bgl_7', display_name: 'Jayanagar, Bengaluru', lat: '12.9299', lon: '77.5824' },
-  { place_id: 'bgl_8', display_name: 'Yelahanka New Town, Bengaluru', lat: '13.1007', lon: '77.5963' }
+  { place_id: 'bgl_1', main_text: 'Koramangala', secondary_text: 'Bengaluru, Karnataka', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
+  { place_id: 'bgl_2', main_text: 'Indiranagar', secondary_text: 'Bengaluru, Karnataka', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
+  { place_id: 'bgl_3', main_text: 'HSR Layout', secondary_text: 'Bengaluru, Karnataka', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
+  { place_id: 'bgl_4', main_text: 'Whitefield', secondary_text: 'Bengaluru, Karnataka', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
+  { place_id: 'bgl_5', main_text: 'Electronic City Phase 1', secondary_text: 'Bengaluru, Karnataka', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
+  { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: '12.9063', lon: '77.5857' }
 ];
 
 interface PropertyModalProps {
@@ -117,15 +117,17 @@ export default function DraftCompletionForm({
       return;
     }
 
+    const cleanQ = searchAddress.trim();
     const directActionItem: SuggestionItem = {
       place_id: `search_modal_${Date.now()}`,
-      display_name: `Search maps for "${searchAddress}"`,
+      main_text: cleanQ,
+      secondary_text: 'Search map for this location',
+      display_name: cleanQ,
       isGooglePlace: true
     };
 
-    // 1. Instant Local Match (0ms)
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
-      item.display_name.toLowerCase().includes(searchAddress.toLowerCase())
+      item.display_name.toLowerCase().includes(cleanQ.toLowerCase())
     );
 
     setSuggestions([directActionItem, ...localMatches]);
@@ -140,7 +142,7 @@ export default function DraftCompletionForm({
           const service = new window.google.maps.places.AutocompleteService();
           service.getPlacePredictions(
             {
-              input: searchAddress,
+              input: cleanQ,
               locationBias: {
                 center: { lat: 12.9716, lng: 77.5946 },
                 radius: 50000
@@ -148,9 +150,11 @@ export default function DraftCompletionForm({
               componentRestrictions: { country: 'in' }
             },
             (predictions, status) => {
-              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions && predictions.length > 0) {
                 const googleResults: SuggestionItem[] = predictions.map((p) => ({
                   place_id: p.place_id,
+                  main_text: p.structured_formatting?.main_text || p.description.split(',')[0],
+                  secondary_text: p.structured_formatting?.secondary_text || p.description.split(',').slice(1).join(','),
                   display_name: p.description,
                   isGooglePlace: true
                 }));
@@ -167,17 +171,25 @@ export default function DraftCompletionForm({
       }
 
       // Attempt B: OpenStreetMap Nominatim Fallback
-      const queryFormatted = searchAddress.toLowerCase().includes('bengaluru') || searchAddress.toLowerCase().includes('bangalore')
-        ? searchAddress
-        : `${searchAddress}, Bengaluru`;
+      const queryFormatted = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
+        ? cleanQ
+        : `${cleanQ}, Bengaluru`;
 
       fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFormatted)}&limit=5`)
         .then((res) => (res.ok ? res.json() : []))
-        .then((data: SuggestionItem[]) => {
+        .then((data: any[]) => {
           if (data && data.length > 0) {
-            const combined = [directActionItem, ...data, ...localMatches];
+            const mappedData: SuggestionItem[] = data.map((d) => ({
+              place_id: d.place_id,
+              main_text: d.display_name.split(',')[0],
+              secondary_text: d.display_name.split(',').slice(1).join(','),
+              display_name: d.display_name,
+              lat: d.lat,
+              lon: d.lon
+            }));
+            const combined = [directActionItem, ...mappedData, ...localMatches];
             const unique = combined.filter(
-              (v, i, a) => a.findIndex((t) => t.display_name.split(',')[0] === v.display_name.split(',')[0]) === i
+              (v, i, a) => a.findIndex((t) => t.main_text.toLowerCase() === v.main_text.toLowerCase()) === i
             );
             setSuggestions(unique.slice(0, 6));
             setShowDropdown(true);
@@ -202,8 +214,7 @@ export default function DraftCompletionForm({
   }, []);
 
   const handleSelectSuggestion = (item: SuggestionItem) => {
-    let cleanName = item.display_name.replace('Search maps for "', '').replace('"', '');
-    cleanName = cleanName.split(',')[0];
+    const cleanName = item.main_text || item.display_name.split(',')[0];
     setSearchAddress(cleanName);
     setShowDropdown(false);
 
@@ -553,7 +564,8 @@ export default function DraftCompletionForm({
                         e.preventDefault();
                         handleSelectSuggestion({
                           place_id: `search_modal_enter_${Date.now()}`,
-                          display_name: searchAddress,
+                          main_text: searchAddress.trim(),
+                          display_name: searchAddress.trim(),
                           isGooglePlace: true
                         });
                       }
@@ -587,7 +599,7 @@ export default function DraftCompletionForm({
                   <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     <span className="flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-brand-500" />
-                      <span>Google Places / Location Suggestions</span>
+                      <span>Location Suggestions</span>
                     </span>
                     {isSearching && <span className="text-brand-500 animate-pulse">Searching...</span>}
                   </div>
@@ -602,8 +614,13 @@ export default function DraftCompletionForm({
                         <Navigation className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-500 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-xs font-bold text-slate-800 group-hover:text-brand-600 line-clamp-1">
-                            {item.display_name}
+                            {item.main_text || item.display_name.split(',')[0]}
                           </p>
+                          {item.secondary_text && (
+                            <p className="text-[10px] text-slate-400 line-clamp-1">
+                              {item.secondary_text}
+                            </p>
+                          )}
                         </div>
                       </button>
                     ))}

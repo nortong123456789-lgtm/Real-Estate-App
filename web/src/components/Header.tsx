@@ -24,41 +24,6 @@ const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
   { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: '12.9063', lon: '77.5857' }
 ];
 
-const generateLocalitySuggestions = (userQuery: string): SuggestionItem[] => {
-  const cleanQ = userQuery.trim();
-  if (!cleanQ) return [];
-  return [
-    {
-      place_id: `loc_1_${cleanQ}`,
-      main_text: cleanQ,
-      secondary_text: 'Bengaluru, Karnataka, India',
-      display_name: `${cleanQ}, Bengaluru, Karnataka`,
-      isGooglePlace: true
-    },
-    {
-      place_id: `loc_2_${cleanQ}`,
-      main_text: `${cleanQ} Apartments`,
-      secondary_text: 'JP Nagar Phase 6, Bengaluru',
-      display_name: `${cleanQ} Apartments, JP Nagar Phase 6, Bengaluru`,
-      isGooglePlace: true
-    },
-    {
-      place_id: `loc_3_${cleanQ}`,
-      main_text: `${cleanQ} Residences`,
-      secondary_text: 'Koramangala, Bengaluru',
-      display_name: `${cleanQ} Residences, Koramangala, Bengaluru`,
-      isGooglePlace: true
-    },
-    {
-      place_id: `loc_4_${cleanQ}`,
-      main_text: `${cleanQ} Layout`,
-      secondary_text: 'Indiranagar, Bengaluru',
-      display_name: `${cleanQ} Layout, Indiranagar, Bengaluru`,
-      isGooglePlace: true
-    }
-  ];
-};
-
 export default function Header({
   draftsCount,
   isAdmin = false,
@@ -84,19 +49,27 @@ export default function Header({
     return sessionTokenRef.current;
   };
 
-  // Autocomplete Engine supporting Google Places API + Generated Locality Suggestions
+  // Clean Autocomplete Engine with Google Places API + Nominatim
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
       return;
     }
 
-    const generatedMatches = generateLocalitySuggestions(query);
+    const cleanQ = query.trim();
+    const directActionItem: SuggestionItem = {
+      place_id: `search_${Date.now()}`,
+      main_text: cleanQ,
+      secondary_text: 'Search location on map',
+      display_name: cleanQ,
+      isGooglePlace: true
+    };
+
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
-      item.display_name.toLowerCase().includes(query.toLowerCase())
+      item.display_name.toLowerCase().includes(cleanQ.toLowerCase())
     );
 
-    setSuggestions([...generatedMatches, ...localMatches].slice(0, 5));
+    setSuggestions([directActionItem, ...localMatches]);
     setShowDropdown(true);
 
     const timer = setTimeout(() => {
@@ -108,7 +81,7 @@ export default function Header({
         try {
           const service = new window.google.maps.places.AutocompleteService();
           const requestOptions: any = {
-            input: query,
+            input: cleanQ,
             locationBias: {
               center: { lat: 12.9716, lng: 77.5946 },
               radius: 50000
@@ -129,7 +102,7 @@ export default function Header({
                 display_name: p.description,
                 isGooglePlace: true
               }));
-              setSuggestions(googleResults.slice(0, 6));
+              setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
               setShowDropdown(true);
               setIsLoading(false);
               return;
@@ -141,9 +114,9 @@ export default function Header({
       }
 
       // Attempt B: OpenStreetMap Nominatim Fallback
-      const searchQueryFormatted = query.toLowerCase().includes('bengaluru') || query.toLowerCase().includes('bangalore')
-        ? query
-        : `${query}, Bengaluru`;
+      const searchQueryFormatted = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
+        ? cleanQ
+        : `${cleanQ}, Bengaluru`;
 
       fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQueryFormatted)}&limit=5`)
         .then((res) => (res.ok ? res.json() : []))
@@ -157,7 +130,7 @@ export default function Header({
               lat: d.lat,
               lon: d.lon
             }));
-            const combined = [...mappedData, ...generatedMatches, ...localMatches];
+            const combined = [directActionItem, ...mappedData, ...localMatches];
             const unique = combined.filter(
               (v, i, a) => a.findIndex((t) => t.main_text.toLowerCase() === v.main_text.toLowerCase()) === i
             );
@@ -167,7 +140,7 @@ export default function Header({
         })
         .catch((err) => console.warn(err))
         .finally(() => setIsLoading(false));
-    }, 200);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -192,7 +165,7 @@ export default function Header({
     // If Google Place ID or generated place, resolve via Geocoder
     if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
       const geocoder = new window.google.maps.Geocoder();
-      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('loc_')
+      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('search_')
         ? { placeId: String(item.place_id) }
         : {
             address: `${cleanName}, Bengaluru, Karnataka`,
@@ -272,8 +245,8 @@ export default function Header({
                       e.preventDefault();
                       handleSelectSuggestion({
                         place_id: `search_enter_${Date.now()}`,
-                        main_text: query,
-                        display_name: query,
+                        main_text: query.trim(),
+                        display_name: query.trim(),
                         isGooglePlace: true
                       });
                     }
@@ -299,8 +272,8 @@ export default function Header({
                     if (query.trim()) {
                       handleSelectSuggestion({
                         place_id: `search_btn_${Date.now()}`,
-                        main_text: query,
-                        display_name: query,
+                        main_text: query.trim(),
+                        display_name: query.trim(),
                         isGooglePlace: true
                       });
                     }
