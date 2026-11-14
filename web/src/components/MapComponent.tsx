@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { Listing } from '@/types';
-import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight } from 'lucide-react';
+import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight, Activity, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { getMediaProxyUrl } from '@/lib/api';
 
 interface MapComponentProps {
@@ -68,6 +68,48 @@ export default function MapComponent({
 }: MapComponentProps) {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [forceOsmFallback, setForceOsmFallback] = useState<boolean>(false);
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+
+  // Live Google Maps SDK Diagnostics State
+  const [sdkStatus, setSdkStatus] = useState<{
+    mapsLoaded: boolean;
+    placesLoaded: boolean;
+    geocoderLoaded: boolean;
+    apiKeyValid: boolean;
+  }>({
+    mapsLoaded: false,
+    placesLoaded: false,
+    geocoderLoaded: false,
+    apiKeyValid: false
+  });
+
+  // Verify API Key and inspect window.google status
+  const isValidApiKey = Boolean(
+    apiKey &&
+    apiKey !== 'YOUR_GOOGLE_MAPS_API_KEY' &&
+    !apiKey.includes('YOUR_') &&
+    apiKey.length > 20
+  ) && !forceOsmFallback;
+
+  useEffect(() => {
+    const checkSdk = () => {
+      if (typeof window !== 'undefined') {
+        const hasGoogle = Boolean(window.google && window.google.maps);
+        const hasPlaces = Boolean(window.google && window.google.maps && window.google.maps.places);
+        const hasGeocoder = Boolean(window.google && window.google.maps && window.google.maps.Geocoder);
+        setSdkStatus({
+          mapsLoaded: hasGoogle,
+          placesLoaded: hasPlaces,
+          geocoderLoaded: hasGeocoder,
+          apiKeyValid: isValidApiKey
+        });
+      }
+    };
+
+    checkSdk();
+    const interval = setInterval(checkSdk, 1000);
+    return () => clearInterval(interval);
+  }, [apiKey, isValidApiKey]);
 
   // Clear selected listing when map center changes to focus on new search location
   useEffect(() => {
@@ -97,23 +139,30 @@ export default function MapComponent({
         .sort((a, b) => a.distanceKm - b.distanceKm)
     : activeListings;
 
-  // Verify whether the API Key is a real key or placeholder
-  const isValidApiKey = Boolean(
-    apiKey &&
-    apiKey !== 'YOUR_GOOGLE_MAPS_API_KEY' &&
-    !apiKey.includes('YOUR_') &&
-    apiKey.length > 20
-  ) && !forceOsmFallback;
-
   return (
     <div
       className="w-full h-full min-h-[500px] relative rounded-2xl md:rounded-3xl overflow-hidden border border-slate-200/80 shadow-md bg-slate-100 flex flex-col"
       style={{ width: '100%', height: '100%', minHeight: '500px' }}
     >
-      {/* Top Left Floating Map Badge */}
-      <div className="absolute top-3 left-3 z-10 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200 text-xs font-extrabold text-slate-800 shadow-md flex items-center gap-2">
-        <MapPin className="w-4 h-4 text-brand-500 flex-shrink-0" />
-        <span>Bengaluru Map ({activeListings.length} Properties)</span>
+      {/* Top Left Floating Map Badge with Live Diagnostic Button */}
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+        <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200 text-xs font-extrabold text-slate-800 shadow-md flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-brand-500 flex-shrink-0" />
+          <span>Bengaluru Map ({activeListings.length} Pins)</span>
+        </div>
+
+        <button
+          onClick={() => setShowDiagnostics(!showDiagnostics)}
+          className={`px-2.5 py-2 rounded-2xl border backdrop-blur-md text-[11px] font-extrabold shadow-md flex items-center gap-1.5 transition-all ${
+            isValidApiKey && sdkStatus.placesLoaded
+              ? 'bg-emerald-50/95 border-emerald-200 text-emerald-700'
+              : 'bg-amber-50/95 border-amber-200 text-amber-700'
+          }`}
+          title="Toggle Google Maps Live Diagnostics"
+        >
+          <Activity className="w-3.5 h-3.5" />
+          <span>{isValidApiKey && sdkStatus.placesLoaded ? 'Google Engine' : 'OSM Mode'}</span>
+        </button>
       </div>
 
       {/* Top Right Map Engine Toggle Badge */}
@@ -126,6 +175,57 @@ export default function MapComponent({
           <span>{forceOsmFallback ? 'Google Maps' : 'OpenStreetMap'}</span>
         </button>
       </div>
+
+      {/* Live Google Maps SDK Diagnostics Modal Card */}
+      {showDiagnostics && (
+        <div className="absolute top-14 left-3 z-30 bg-slate-900/95 backdrop-blur-xl text-white rounded-3xl p-4 shadow-2xl border border-slate-800 max-w-xs text-xs animate-in fade-in slide-in-from-top-2 duration-150 space-y-2.5">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <span className="font-extrabold flex items-center gap-1.5 text-brand-500">
+              <Activity className="w-4 h-4" />
+              <span>Map SDK Live Debugger</span>
+            </span>
+            <button onClick={() => setShowDiagnostics(false)} className="text-slate-400 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-1.5 font-mono text-[11px]">
+            <div className="flex justify-between items-center">
+              <span>Google API Key:</span>
+              <span className={isValidApiKey ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                {isValidApiKey ? 'Configured' : 'Placeholder'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span>Google Maps SDK:</span>
+              <span className={sdkStatus.mapsLoaded ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                {sdkStatus.mapsLoaded ? 'Loaded' : 'Not Loaded'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span>Places Autocomplete:</span>
+              <span className={sdkStatus.placesLoaded ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                {sdkStatus.placesLoaded ? 'Active' : 'Fallback Mode'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span>Geocoder Service:</span>
+              <span className={sdkStatus.geocoderLoaded ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                {sdkStatus.geocoderLoaded ? 'Operational' : 'Fallback Mode'}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 leading-normal">
+            {!isValidApiKey
+              ? 'Using OpenStreetMap tile engine. Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in web/.env.local for Google Places search.'
+              : 'Google Maps WebGL Vector Engine is active.'}
+          </p>
+        </div>
+      )}
 
       {/* Map View Canvas */}
       <div className="flex-1 w-full relative">
