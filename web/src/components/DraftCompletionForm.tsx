@@ -13,19 +13,19 @@ interface SuggestionItem {
   main_text: string;
   secondary_text?: string;
   display_name: string;
-  lat?: string;
-  lon?: string;
+  lat?: number;
+  lng?: number;
   isGooglePlace?: boolean;
 }
 
 // Popular Bengaluru Landmarks
 const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
-  { place_id: 'bgl_1', main_text: 'Koramangala', secondary_text: 'Bengaluru, Karnataka', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
-  { place_id: 'bgl_2', main_text: 'Indiranagar', secondary_text: 'Bengaluru, Karnataka', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
-  { place_id: 'bgl_3', main_text: 'HSR Layout', secondary_text: 'Bengaluru, Karnataka', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
-  { place_id: 'bgl_4', main_text: 'Whitefield', secondary_text: 'Bengaluru, Karnataka', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
-  { place_id: 'bgl_5', main_text: 'Electronic City Phase 1', secondary_text: 'Bengaluru, Karnataka', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
-  { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: '12.9063', lon: '77.5857' }
+  { place_id: 'bgl_1', main_text: 'Koramangala', secondary_text: 'Bengaluru, Karnataka', display_name: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245 },
+  { place_id: 'bgl_2', main_text: 'Indiranagar', secondary_text: 'Bengaluru, Karnataka', display_name: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408 },
+  { place_id: 'bgl_3', main_text: 'HSR Layout', secondary_text: 'Bengaluru, Karnataka', display_name: 'HSR Layout, Bengaluru', lat: 12.9116, lng: 77.6388 },
+  { place_id: 'bgl_4', main_text: 'Whitefield', secondary_text: 'Bengaluru, Karnataka', display_name: 'Whitefield, Bengaluru', lat: 12.9696, lng: 77.7497 },
+  { place_id: 'bgl_5', main_text: 'Electronic City Phase 1', secondary_text: 'Bengaluru, Karnataka', display_name: 'Electronic City Phase 1, Bengaluru', lat: 12.8452, lng: 77.6602 },
+  { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: 12.9063, lng: 77.5857 }
 ];
 
 interface PropertyModalProps {
@@ -110,7 +110,7 @@ export default function DraftCompletionForm({
     }
   }, [selectedCoords]);
 
-  // Autocomplete Suggestions with Google Places + Bengaluru Spatial Bias
+  // Autocomplete Suggestions with Google Geocoder Priority
   useEffect(() => {
     if (!searchAddress.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -118,17 +118,17 @@ export default function DraftCompletionForm({
     }
 
     const cleanQ = searchAddress.trim();
-    const directActionItem: SuggestionItem = {
-      place_id: `search_modal_${Date.now()}`,
-      main_text: cleanQ,
-      secondary_text: 'Search map for this location',
-      display_name: cleanQ,
-      isGooglePlace: true
-    };
-
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(cleanQ.toLowerCase())
     );
+
+    const directActionItem: SuggestionItem = {
+      place_id: `search_modal_${Date.now()}`,
+      main_text: cleanQ,
+      secondary_text: 'Search map location',
+      display_name: cleanQ,
+      isGooglePlace: true
+    };
 
     setSuggestions([directActionItem, ...localMatches]);
     setShowDropdown(true);
@@ -136,29 +136,38 @@ export default function DraftCompletionForm({
     const timer = setTimeout(() => {
       setIsSearching(true);
 
-      // Attempt A: Google Places Autocomplete Service
-      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
+      // Attempt 1: Google Geocoder API
+      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
         try {
-          const service = new window.google.maps.places.AutocompleteService();
-          service.getPlacePredictions(
+          const geocoder = new window.google.maps.Geocoder();
+          const formattedSearch = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
+            ? cleanQ
+            : `${cleanQ}, Bengaluru, Karnataka`;
+
+          geocoder.geocode(
             {
-              input: cleanQ,
-              locationBias: {
-                center: { lat: 12.9716, lng: 77.5946 },
-                radius: 50000
-              },
-              componentRestrictions: { country: 'in' }
+              address: formattedSearch,
+              bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
             },
-            (predictions, status) => {
-              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions && predictions.length > 0) {
-                const googleResults: SuggestionItem[] = predictions.map((p) => ({
-                  place_id: p.place_id,
-                  main_text: p.structured_formatting?.main_text || p.description.split(',')[0],
-                  secondary_text: p.structured_formatting?.secondary_text || p.description.split(',').slice(1).join(','),
-                  display_name: p.description,
-                  isGooglePlace: true
-                }));
-                setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
+            (results, status) => {
+              if (status === 'OK' && results && results.length > 0) {
+                const googleResults: SuggestionItem[] = results.map((r, idx) => {
+                  const parts = r.formatted_address.split(',');
+                  const mainText = parts[0].trim();
+                  const secondaryText = parts.slice(1, 3).join(',').trim();
+                  const loc = r.geometry.location;
+                  return {
+                    place_id: `modal_geo_${idx}_${Date.now()}`,
+                    main_text: mainText,
+                    secondary_text: secondaryText,
+                    display_name: r.formatted_address,
+                    lat: loc.lat(),
+                    lng: loc.lng(),
+                    isGooglePlace: true
+                  };
+                });
+
+                setSuggestions(googleResults.slice(0, 5));
                 setShowDropdown(true);
                 setIsSearching(false);
                 return;
@@ -166,16 +175,16 @@ export default function DraftCompletionForm({
             }
           );
         } catch (err) {
-          console.warn('Google Places autocomplete error:', err);
+          console.warn('Google Geocoder failed, falling back to Nominatim', err);
         }
       }
 
-      // Attempt B: OpenStreetMap Nominatim Fallback
-      const queryFormatted = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
+      // Attempt 2: OpenStreetMap Nominatim Fallback
+      const searchQueryFormatted = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
         ? cleanQ
         : `${cleanQ}, Bengaluru`;
 
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFormatted)}&limit=5`)
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQueryFormatted)}&limit=5`)
         .then((res) => (res.ok ? res.json() : []))
         .then((data: any[]) => {
           if (data && data.length > 0) {
@@ -184,14 +193,11 @@ export default function DraftCompletionForm({
               main_text: d.display_name.split(',')[0],
               secondary_text: d.display_name.split(',').slice(1).join(','),
               display_name: d.display_name,
-              lat: d.lat,
-              lon: d.lon
+              lat: parseFloat(d.lat),
+              lng: parseFloat(d.lon)
             }));
-            const combined = [directActionItem, ...mappedData, ...localMatches];
-            const unique = combined.filter(
-              (v, i, a) => a.findIndex((t) => t.main_text.toLowerCase() === v.main_text.toLowerCase()) === i
-            );
-            setSuggestions(unique.slice(0, 6));
+            const combined = [...mappedData, ...localMatches];
+            setSuggestions(combined.slice(0, 5));
             setShowDropdown(true);
           }
         })
@@ -218,45 +224,40 @@ export default function DraftCompletionForm({
     setSearchAddress(cleanName);
     setShowDropdown(false);
 
-    // Resolve Google Place ID or direct geocode via Geocoder
-    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
-      const geocoder = new window.google.maps.Geocoder();
-      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('search_')
-        ? { placeId: String(item.place_id) }
-        : {
-            address: `${cleanName}, Bengaluru, Karnataka`,
-            bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
-          };
-
-      geocoder.geocode(geocodeTarget, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location;
-          const newLat = loc.lat();
-          const newLng = loc.lng();
-
-          setLatitude(newLat);
-          setLongitude(newLng);
-          setSearchFeedback(`Pin placed at: ${cleanName}`);
-
-          if (onUpdateCoords) {
-            onUpdateCoords({ lat: newLat, lng: newLng });
-          }
-        }
-      });
+    if (item.lat && item.lng) {
+      setLatitude(item.lat);
+      setLongitude(item.lng);
+      setSearchFeedback(`Pin placed at: ${cleanName}`);
+      if (onUpdateCoords) {
+        onUpdateCoords({ lat: item.lat, lng: item.lng });
+      }
       return;
     }
 
-    if (item.lat && item.lon) {
-      const newLat = parseFloat(item.lat);
-      const newLng = parseFloat(item.lon);
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode(
+        {
+          address: `${cleanName}, Bengaluru, Karnataka`,
+          bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
+        },
+        (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const loc = results[0].geometry.location;
+            const newLat = loc.lat();
+            const newLng = loc.lng();
 
-      setLatitude(newLat);
-      setLongitude(newLng);
-      setSearchFeedback(`Pin placed at: ${cleanName}`);
+            setLatitude(newLat);
+            setLongitude(newLng);
+            setSearchFeedback(`Pin placed at: ${cleanName}`);
 
-      if (onUpdateCoords) {
-        onUpdateCoords({ lat: newLat, lng: newLng });
-      }
+            if (onUpdateCoords) {
+              onUpdateCoords({ lat: newLat, lng: newLng });
+            }
+          }
+        }
+      );
+      return;
     }
   };
 
@@ -599,7 +600,7 @@ export default function DraftCompletionForm({
                   <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     <span className="flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-brand-500" />
-                      <span>Location Suggestions</span>
+                      <span>Google Location Suggestions</span>
                     </span>
                     {isSearching && <span className="text-brand-500 animate-pulse">Searching...</span>}
                   </div>
