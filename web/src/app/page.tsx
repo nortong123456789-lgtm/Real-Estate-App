@@ -96,6 +96,26 @@ export default function DashboardPage(): React.JSX.Element {
     }
   };
 
+  const handleCreateListingAtCoords = (coords: { lat: number; lng: number }) => {
+    if (!isAdmin) return;
+
+    const newDraftStub: Listing = {
+      id: `draft_${Date.now()}`,
+      status: 'draft',
+      configuration: '2 BHK Apartment',
+      rent_amount: 25000,
+      latitude: coords.lat,
+      longitude: coords.lng,
+      description: 'Spacious modern apartment with modular kitchen and power backup.',
+      admin_notes: 'Created by Admin on Map Pin.',
+      media_files: [],
+      created_at: new Date().toISOString()
+    };
+
+    setSelectedDraft(newDraftStub);
+    setSelectedCoords(coords);
+  };
+
   const handleCompleteDraft = async (payload: DraftUpdatePayload) => {
     if (!selectedDraft) return;
     await updateDraftListing(selectedDraft.id, payload);
@@ -119,6 +139,7 @@ export default function DashboardPage(): React.JSX.Element {
 
     if (coords) {
       setMapCenter(coords);
+      setSelectedCoords(coords);
       return;
     }
 
@@ -143,7 +164,9 @@ export default function DashboardPage(): React.JSX.Element {
           (results, status) => {
             if (status === 'OK' && results && results[0]) {
               const loc = results[0].geometry.location;
-              setMapCenter({ lat: loc.lat(), lng: loc.lng() });
+              const newCoords = { lat: loc.lat(), lng: loc.lng() };
+              setMapCenter(newCoords);
+              setSelectedCoords(newCoords);
               return;
             }
           }
@@ -163,7 +186,9 @@ export default function DashboardPage(): React.JSX.Element {
         if (data && data.length > 0) {
           const newLat = parseFloat(data[0].lat);
           const newLng = parseFloat(data[0].lon);
-          setMapCenter({ lat: newLat, lng: newLng });
+          const newCoords = { lat: newLat, lng: newLng };
+          setMapCenter(newCoords);
+          setSelectedCoords(newCoords);
         }
       }
     } catch (err) {
@@ -378,8 +403,15 @@ export default function DashboardPage(): React.JSX.Element {
                 activeListings={filteredListings}
                 selectedCoords={selectedCoords}
                 mapCenter={mapCenter}
-                onMapClick={(coords) => setSelectedCoords(coords)}
+                onMapClick={(coords) => {
+                  setSelectedCoords(coords);
+                  if (isAdmin) {
+                    handleCreateListingAtCoords(coords);
+                  }
+                }}
                 onSelectListing={handleSelectProperty}
+                onCreateListingAtCoords={handleCreateListingAtCoords}
+                isAdmin={isAdmin}
                 apiKey={googleMapsApiKey}
               />
             </div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { Listing } from '@/types';
-import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight, Activity, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Building, MapPin, Camera, ExternalLink, Layers, X, Navigation, ChevronRight, Activity, ShieldCheck, PlusCircle } from 'lucide-react';
 import { getMediaProxyUrl } from '@/lib/api';
 
 interface MapComponentProps {
@@ -12,6 +12,8 @@ interface MapComponentProps {
   mapCenter?: { lat: number; lng: number } | null;
   onMapClick?: (coords: { lat: number; lng: number }) => void;
   onSelectListing?: (listing: Listing) => void;
+  onCreateListingAtCoords?: (coords: { lat: number; lng: number }) => void;
+  isAdmin?: boolean;
   apiKey: string;
 }
 
@@ -31,7 +33,7 @@ function MapController({ center }: { center: { lat: number; lng: number } }) {
   return null;
 }
 
-// Safe Price Formatter for iOS Safari
+// Safe Price Formatter
 function formatPrice(amount?: number | string | null): string {
   if (!amount) return '25,000';
   const num = typeof amount === 'number' ? amount : parseFloat(String(amount));
@@ -64,6 +66,8 @@ export default function MapComponent({
   mapCenter,
   onMapClick,
   onSelectListing,
+  onCreateListingAtCoords,
+  isAdmin = false,
   apiKey
 }: MapComponentProps) {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
@@ -118,7 +122,9 @@ export default function MapComponent({
     }
   }, [mapCenter]);
 
-  const currentCenter = mapCenter || (selectedListing?.latitude && selectedListing?.longitude
+  const currentCenter = mapCenter || (selectedCoords
+    ? selectedCoords
+    : selectedListing?.latitude && selectedListing?.longitude
     ? { lat: Number(selectedListing.latitude), lng: Number(selectedListing.longitude) }
     : BENGALURU_DEFAULT_CENTER);
 
@@ -127,13 +133,20 @@ export default function MapComponent({
   const osmBbox = `${currentCenter.lng - delta},${currentCenter.lat - delta},${currentCenter.lng + delta},${currentCenter.lat + delta}`;
   const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${osmBbox}&layer=mapnik&marker=${currentCenter.lat},${currentCenter.lng}`;
 
-  // Calculate nearby listings sorted by spatial distance
-  const nearbyListings = (selectedListing?.latitude && selectedListing?.longitude)
+  // Focus reference point for spatial distance calculation: selectedListing OR selectedCoords OR mapCenter
+  const focusPoint = (selectedListing?.latitude && selectedListing?.longitude)
+    ? { lat: Number(selectedListing.latitude), lng: Number(selectedListing.longitude) }
+    : selectedCoords
+    ? selectedCoords
+    : mapCenter;
+
+  // Calculate nearby listings sorted by spatial distance from focus point
+  const nearbyListings = focusPoint
     ? activeListings
         .map((item) => ({
           ...item,
           distanceKm: (item.latitude && item.longitude)
-            ? calculateDistanceKm(Number(selectedListing.latitude!), Number(selectedListing.longitude!), Number(item.latitude), Number(item.longitude))
+            ? calculateDistanceKm(focusPoint.lat, focusPoint.lng, Number(item.latitude), Number(item.longitude))
             : 999
         }))
         .sort((a, b) => a.distanceKm - b.distanceKm)
@@ -164,6 +177,19 @@ export default function MapComponent({
           <span>{isValidApiKey && sdkStatus.placesLoaded ? 'Google Engine' : 'OSM Mode'}</span>
         </button>
       </div>
+
+      {/* Admin Quick Add Floating Button when Pin is Selected */}
+      {isAdmin && selectedCoords && onCreateListingAtCoords && (
+        <div className="absolute top-14 right-3 z-20">
+          <button
+            onClick={() => onCreateListingAtCoords(selectedCoords)}
+            className="bg-slate-900 hover:bg-black text-white font-extrabold text-xs py-2.5 px-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700 animate-in fade-in duration-200"
+          >
+            <PlusCircle className="w-4 h-4 text-emerald-400" />
+            <span>+ Add Property at Pin</span>
+          </button>
+        </div>
+      )}
 
       {/* Top Right Map Engine Toggle Badge */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
@@ -218,12 +244,6 @@ export default function MapComponent({
               </span>
             </div>
           </div>
-
-          <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 leading-normal">
-            {!isValidApiKey
-              ? 'Using OpenStreetMap tile engine. Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in web/.env.local for Google Places search.'
-              : 'Google Maps WebGL Vector Engine is active.'}
-          </p>
         </div>
       )}
 
@@ -267,19 +287,46 @@ export default function MapComponent({
                 ) : null
               ))}
 
-              {/* Draft Target Selected Pin */}
+              {/* Target Searched / Selected Pin */}
               {selectedCoords && typeof selectedCoords.lat === 'number' && typeof selectedCoords.lng === 'number' && (
-                <Marker
-                  position={selectedCoords}
-                  icon={{
-                    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
-                    fillColor: '#101828',
-                    fillOpacity: 1,
-                    strokeWeight: 2,
-                    strokeColor: '#FF5A3C',
-                    scale: 2
-                  }}
-                />
+                <>
+                  <Marker
+                    position={selectedCoords}
+                    icon={{
+                      path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
+                      fillColor: '#101828',
+                      fillOpacity: 1,
+                      strokeWeight: 2.5,
+                      strokeColor: '#FF5A3C',
+                      scale: 2.2
+                    }}
+                  />
+
+                  {/* Admin InfoWindow Callout on Target Searched Pin */}
+                  {isAdmin && onCreateListingAtCoords && (
+                    <InfoWindow
+                      position={selectedCoords}
+                      onCloseClick={() => {}}
+                    >
+                      <div className="p-1 max-w-[200px] text-center font-sans">
+                        <div className="flex items-center justify-center gap-1 text-slate-900 font-extrabold text-xs mb-1">
+                          <MapPin className="w-3.5 h-3.5 text-brand-500" />
+                          <span>Target Search Pin</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-mono mb-2">
+                          {selectedCoords.lat.toFixed(4)}, {selectedCoords.lng.toFixed(4)}
+                        </p>
+                        <button
+                          onClick={() => onCreateListingAtCoords(selectedCoords)}
+                          className="w-full py-1.5 px-2 bg-slate-900 hover:bg-black text-white font-extrabold text-[11px] rounded-lg flex items-center justify-center gap-1 shadow-xs transition-colors"
+                        >
+                          <PlusCircle className="w-3 h-3 text-emerald-400" />
+                          <span>Add Property Here</span>
+                        </button>
+                      </div>
+                    </InfoWindow>
+                  )}
+                </>
               )}
 
               {/* Info Window for Selected Active Listing */}
@@ -336,8 +383,8 @@ export default function MapComponent({
         )}
       </div>
 
-      {/* Floating Bottom Nearby Properties Carousel Drawer */}
-      {selectedListing && (
+      {/* Floating Bottom Nearby Properties Carousel Drawer for both Guests and Admins */}
+      {(selectedListing || selectedCoords) && nearbyListings.length > 0 && (
         <div className="bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-3 sm:p-4 shadow-2xl z-20 animate-in slide-in-from-bottom duration-300">
           <div className="max-w-7xl mx-auto">
             {/* Drawer Header */}
@@ -345,7 +392,7 @@ export default function MapComponent({
               <div className="flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-extrabold text-slate-900">
-                  Nearby Properties
+                  Properties Near Searched Location
                 </h3>
                 <span className="bg-brand-50 text-brand-600 text-[10px] font-extrabold px-2 py-0.5 rounded-md border border-brand-100">
                   {nearbyListings.length} Nearby
@@ -363,7 +410,7 @@ export default function MapComponent({
             {/* Nearby Properties Horizontal Carousel */}
             <div className="flex gap-3.5 overflow-x-auto pb-1 scrollbar-thin">
               {nearbyListings.map((item) => {
-                const isSelected = item.id === selectedListing.id;
+                const isSelected = item.id === selectedListing?.id;
                 const mediaUrl = item.media_files?.[0] ? getMediaProxyUrl(item.media_files[0]) : null;
 
                 return (
