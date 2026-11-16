@@ -45,7 +45,10 @@ export async function updateDraftListing(id: string, payload: DraftUpdatePayload
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error('Failed to update draft listing');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `Failed to update draft listing (HTTP ${res.status})`);
+  }
   return res.json();
 }
 

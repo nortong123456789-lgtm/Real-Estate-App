@@ -127,14 +127,18 @@ def update_draft_listing(
 ):
     """
     Manual completion form endpoint.
-    Updates listing configuration, rent_amount, neighborhood, and coordinates in Telegram JSON storage.
+    Updates listing configuration, rent_amount, description, admin_notes, and coordinates in Telegram JSON storage.
     """
-    updates = payload.dict(exclude_unset=True)
+    try:
+        updates = payload.model_dump(exclude_unset=True)
+    except AttributeError:
+        updates = payload.dict(exclude_unset=True)
+
     try:
         updated_record = telegram_db.update_listing(listing_id, updates)
         return updated_record
-    except KeyError:
-        raise HTTPException(status_code=404, detail="Listing not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{listing_id}")
 def delete_listing(listing_id: str):
