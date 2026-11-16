@@ -306,17 +306,29 @@ class TelegramDBManager:
         return listing_record
 
     def update_listing(self, listing_id: str, updates: dict) -> dict:
-        """Updates listing in Telegram JSON database and updates index."""
+        """Updates listing in Telegram JSON database and updates index (creates if new map pin stub)."""
+        now_str = datetime.utcnow().isoformat()
+
         if listing_id not in self._index:
-            raise KeyError(f"Listing {listing_id} not found in Telegram database")
-
-        record = self._index[listing_id]
-
-        for key, val in updates.items():
-            if val is not None:
-                record[key] = val
-
-        record["updated_at"] = datetime.utcnow().isoformat()
+            record = {
+                "id": listing_id,
+                "status": updates.get("status", "active"),
+                "configuration": updates.get("configuration", "2 BHK Apartment"),
+                "rent_amount": updates.get("rent_amount", 25000),
+                "latitude": updates.get("latitude", 12.9716),
+                "longitude": updates.get("longitude", 77.5946),
+                "description": updates.get("description", None),
+                "admin_notes": updates.get("admin_notes", None),
+                "media_files": updates.get("media_files", []),
+                "created_at": now_str,
+                "updated_at": now_str
+            }
+        else:
+            record = self._index[listing_id]
+            for key, val in updates.items():
+                if val is not None:
+                    record[key] = val
+            record["updated_at"] = now_str
 
         json_payload_str = f"<b>#REAL_ESTATE_UPDATED</b>\n<pre><code>{json.dumps(record, indent=2)}</code></pre>"
         try:
