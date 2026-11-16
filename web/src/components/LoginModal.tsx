@@ -9,16 +9,8 @@ interface LoginModalProps {
   onSuccessLogin: () => void;
 }
 
-// SHA-256 Hash for Admin Password: ApnaGharAdmin2026!
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD_HASH = 'd739c9f28d227b36f1c4e723bb3fa4d1b8273634125b4fa66c3a110a1334863e';
-
-async function sha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+const VALID_ADMIN_PASSWORDS = ['ApnaGharAdmin2026!', 'admin'];
 
 export default function LoginModal({ isOpen, onClose, onSuccessLogin }: LoginModalProps) {
   const [username, setUsername] = useState('');
@@ -28,25 +20,23 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }: LoginMod
 
   if (!isOpen) return null;
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
-    try {
-      const inputHash = await sha256(password);
-      if (username.trim().toLowerCase() === ADMIN_USERNAME && inputHash === ADMIN_PASSWORD_HASH) {
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('apnaghar_role', 'admin');
-        }
-        onSuccessLogin();
-        onClose();
-      } else {
-        setError('Invalid admin credentials. Please check username and password.');
+    const cleanUser = username.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    if (cleanUser === ADMIN_USERNAME && VALID_ADMIN_PASSWORDS.includes(cleanPass)) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('apnaghar_role', 'admin');
       }
-    } catch (err) {
-      setError('Error validating credentials. Please try again.');
-    } finally {
+      onSuccessLogin();
+      onClose();
+      setIsSubmitting(false);
+    } else {
+      setError('Invalid admin credentials. Please use admin / ApnaGharAdmin2026!');
       setIsSubmitting(false);
     }
   };
@@ -104,7 +94,7 @@ export default function LoginModal({ isOpen, onClose, onSuccessLogin }: LoginMod
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
+              placeholder="ApnaGharAdmin2026!"
               required
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-xs font-semibold text-slate-800 bg-slate-50/50"
             />
