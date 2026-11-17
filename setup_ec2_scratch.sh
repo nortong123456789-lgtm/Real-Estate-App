@@ -38,8 +38,8 @@ if [ "$OS_TYPE" = "ubuntu" ]; then
     sudo apt update && sudo apt upgrade -y
     sudo apt install -y git curl wget unzip build-essential nginx net-tools fuser
 else
-    sudo $PKG_MGR update -y
-    sudo $PKG_MGR install -y git curl wget unzip gcc gcc-c++ make nginx
+    sudo $PKG_MGR update -y --allowerasing || true
+    sudo $PKG_MGR install -y --allowerasing git wget unzip gcc gcc-c++ make nginx || true
 fi
 
 # 2. Configure 2GB Swap Memory (Prevents OOM Out-Of-Memory Kills)
@@ -61,7 +61,7 @@ if ! command -v docker &> /dev/null; then
         sudo sh get-docker.sh
         rm get-docker.sh
     else
-        sudo $PKG_MGR install -y docker
+        sudo $PKG_MGR install -y --allowerasing docker
     fi
 fi
 
@@ -76,7 +76,7 @@ if ! command -v node &> /dev/null; then
     if [ "$OS_TYPE" = "ubuntu" ]; then
         sudo apt install -y nodejs
     else
-        sudo $PKG_MGR install -y nodejs
+        sudo $PKG_MGR install -y --allowerasing nodejs
     fi
 fi
 sudo npm install -g pm2
