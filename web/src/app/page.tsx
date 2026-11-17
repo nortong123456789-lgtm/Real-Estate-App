@@ -394,26 +394,42 @@ export default function DashboardPage(): React.JSX.Element {
               )}
             </div>
           ) : currentView === 'map' ? (
-            /* Vector Map View */
-            <div
-              className="w-full h-full min-h-[480px] relative"
-              style={{ width: '100%', height: '100%', minHeight: '480px' }}
-            >
-              <MapComponent
-                activeListings={filteredListings}
-                selectedCoords={selectedCoords}
-                mapCenter={mapCenter}
-                onMapClick={(coords) => {
-                  setSelectedCoords(coords);
-                  if (isAdmin) {
-                    handleCreateListingAtCoords(coords);
-                  }
-                }}
-                onSelectListing={handleSelectProperty}
-                onCreateListingAtCoords={handleCreateListingAtCoords}
-                isAdmin={isAdmin}
-                apiKey={googleMapsApiKey}
-              />
+            /* Vector Map View - Explicit Height for Mobile Viewports */
+            <div className="flex flex-col gap-4 w-full h-full min-h-[500px]">
+              <div
+                className="w-full h-[60vh] min-h-[420px] sm:min-h-[520px] relative rounded-2xl md:rounded-3xl overflow-hidden shadow-md"
+                style={{ width: '100%', minHeight: '420px' }}
+              >
+                <MapComponent
+                  activeListings={filteredListings}
+                  selectedCoords={selectedCoords}
+                  mapCenter={mapCenter}
+                  onMapClick={(coords) => {
+                    setSelectedCoords(coords);
+                    if (isAdmin) {
+                      handleCreateListingAtCoords(coords);
+                    }
+                  }}
+                  onSelectListing={handleSelectProperty}
+                  onCreateListingAtCoords={handleCreateListingAtCoords}
+                  isAdmin={isAdmin}
+                  apiKey={googleMapsApiKey}
+                />
+              </div>
+
+              {/* Property Carousel directly below map when in Map View Mode */}
+              <div className="pt-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
+                  Properties in View ({filteredListings.length})
+                </h3>
+                <div className="flex gap-3.5 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-2">
+                  {filteredListings.map((listing) => (
+                    <div key={listing.id} className="w-[78vw] sm:w-[280px] flex-shrink-0 snap-start">
+                      <PropertyCard listing={listing} onSelect={handleSelectProperty} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             /* Drafts Mobile Fallback (Admin Only) */
