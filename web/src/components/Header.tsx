@@ -9,19 +9,19 @@ interface SuggestionItem {
   main_text: string;
   secondary_text?: string;
   display_name: string;
-  lat?: string;
-  lon?: string;
+  lat?: number;
+  lng?: number;
   isGooglePlace?: boolean;
 }
 
 // Popular Bengaluru Landmarks
 const POPULAR_BENGALURU_LOCATIONS: SuggestionItem[] = [
-  { place_id: 'bgl_1', main_text: 'Koramangala', secondary_text: 'Bengaluru, Karnataka', display_name: 'Koramangala, Bengaluru', lat: '12.9352', lon: '77.6245' },
-  { place_id: 'bgl_2', main_text: 'Indiranagar', secondary_text: 'Bengaluru, Karnataka', display_name: 'Indiranagar, Bengaluru', lat: '12.9784', lon: '77.6408' },
-  { place_id: 'bgl_3', main_text: 'HSR Layout', secondary_text: 'Bengaluru, Karnataka', display_name: 'HSR Layout, Bengaluru', lat: '12.9116', lon: '77.6388' },
-  { place_id: 'bgl_4', main_text: 'Whitefield', secondary_text: 'Bengaluru, Karnataka', display_name: 'Whitefield, Bengaluru', lat: '12.9696', lon: '77.7497' },
-  { place_id: 'bgl_5', main_text: 'Electronic City Phase 1', secondary_text: 'Bengaluru, Karnataka', display_name: 'Electronic City Phase 1, Bengaluru', lat: '12.8452', lon: '77.6602' },
-  { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: '12.9063', lon: '77.5857' }
+  { place_id: 'bgl_1', main_text: 'Koramangala', secondary_text: 'Bengaluru, Karnataka', display_name: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245 },
+  { place_id: 'bgl_2', main_text: 'Indiranagar', secondary_text: 'Bengaluru, Karnataka', display_name: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408 },
+  { place_id: 'bgl_3', main_text: 'HSR Layout', secondary_text: 'Bengaluru, Karnataka', display_name: 'HSR Layout, Bengaluru', lat: 12.9116, lng: 77.6388 },
+  { place_id: 'bgl_4', main_text: 'Whitefield', secondary_text: 'Bengaluru, Karnataka', display_name: 'Whitefield, Bengaluru', lat: 12.9696, lng: 77.7497 },
+  { place_id: 'bgl_5', main_text: 'Electronic City Phase 1', secondary_text: 'Bengaluru, Karnataka', display_name: 'Electronic City Phase 1, Bengaluru', lat: 12.8452, lng: 77.6602 },
+  { place_id: 'bgl_6', main_text: 'JP Nagar Phase 6', secondary_text: 'Bengaluru, Karnataka', display_name: 'JP Nagar Phase 6, Bengaluru', lat: 12.9063, lng: 77.5857 }
 ];
 
 export default function Header({
@@ -38,18 +38,7 @@ export default function Header({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const sessionTokenRef = useRef<any>(null);
-
-  const getOrCreateSessionToken = () => {
-    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
-      if (!sessionTokenRef.current && window.google.maps.places.AutocompleteSessionToken) {
-        sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
-      }
-    }
-    return sessionTokenRef.current;
-  };
-
-  // Clean Autocomplete Engine with Google Places API + Nominatim
+  // Autocomplete Engine supporting Google Places API + Nominatim
   useEffect(() => {
     if (!query.trim()) {
       setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
@@ -57,63 +46,68 @@ export default function Header({
     }
 
     const cleanQ = query.trim();
-    const directActionItem: SuggestionItem = {
-      place_id: `search_${Date.now()}`,
-      main_text: cleanQ,
-      secondary_text: 'Search location on map',
-      display_name: cleanQ,
-      isGooglePlace: true
-    };
-
     const localMatches = POPULAR_BENGALURU_LOCATIONS.filter((item) =>
       item.display_name.toLowerCase().includes(cleanQ.toLowerCase())
     );
+
+    const directActionItem: SuggestionItem = {
+      place_id: `search_${Date.now()}`,
+      main_text: cleanQ,
+      secondary_text: 'Search map location',
+      display_name: cleanQ,
+      isGooglePlace: true
+    };
 
     setSuggestions([directActionItem, ...localMatches]);
     setShowDropdown(true);
 
     const timer = setTimeout(() => {
       setIsLoading(true);
-      const token = getOrCreateSessionToken();
 
-      // Attempt A: Google Places Autocomplete Service
-      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.places) {
+      // Attempt 1: Google Geocoder API
+      if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
         try {
-          const service = new window.google.maps.places.AutocompleteService();
-          const requestOptions: any = {
-            input: cleanQ,
-            locationBias: {
-              center: { lat: 12.9716, lng: 77.5946 },
-              radius: 50000
+          const geocoder = new window.google.maps.Geocoder();
+          const formattedSearch = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
+            ? cleanQ
+            : `${cleanQ}, Bengaluru, Karnataka`;
+
+          geocoder.geocode(
+            {
+              address: formattedSearch,
+              bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
             },
-            language: 'en',
-            region: 'in',
-            componentRestrictions: { country: 'in' }
-          };
+            (results, status) => {
+              if (status === 'OK' && results && results.length > 0) {
+                const googleResults: SuggestionItem[] = results.map((r, idx) => {
+                  const parts = r.formatted_address.split(',');
+                  const mainText = parts[0].trim();
+                  const secondaryText = parts.slice(1, 3).join(',').trim();
+                  const loc = r.geometry.location;
+                  return {
+                    place_id: `geo_${idx}_${Date.now()}`,
+                    main_text: mainText,
+                    secondary_text: secondaryText,
+                    display_name: r.formatted_address,
+                    lat: loc.lat(),
+                    lng: loc.lng(),
+                    isGooglePlace: true
+                  };
+                });
 
-          if (token) requestOptions.sessionToken = token;
-
-          service.getPlacePredictions(requestOptions, (predictions, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions && predictions.length > 0) {
-              const googleResults: SuggestionItem[] = predictions.map((p) => ({
-                place_id: p.place_id,
-                main_text: p.structured_formatting?.main_text || p.description.split(',')[0],
-                secondary_text: p.structured_formatting?.secondary_text || p.description.split(',').slice(1).join(','),
-                display_name: p.description,
-                isGooglePlace: true
-              }));
-              setSuggestions([directActionItem, ...googleResults.slice(0, 5)]);
-              setShowDropdown(true);
-              setIsLoading(false);
-              return;
+                setSuggestions(googleResults.slice(0, 5));
+                setShowDropdown(true);
+                setIsLoading(false);
+                return;
+              }
             }
-          });
+          );
         } catch (err) {
-          console.warn('Google Places autocomplete failed, falling back', err);
+          console.warn('Google Geocoder failed, falling back to Nominatim', err);
         }
       }
 
-      // Attempt B: OpenStreetMap Nominatim Fallback
+      // Attempt 2: OpenStreetMap Nominatim Fallback
       const searchQueryFormatted = cleanQ.toLowerCase().includes('bengaluru') || cleanQ.toLowerCase().includes('bangalore')
         ? cleanQ
         : `${cleanQ}, Bengaluru`;
@@ -127,14 +121,11 @@ export default function Header({
               main_text: d.display_name.split(',')[0],
               secondary_text: d.display_name.split(',').slice(1).join(','),
               display_name: d.display_name,
-              lat: d.lat,
-              lon: d.lon
+              lat: parseFloat(d.lat),
+              lng: parseFloat(d.lon)
             }));
-            const combined = [directActionItem, ...mappedData, ...localMatches];
-            const unique = combined.filter(
-              (v, i, a) => a.findIndex((t) => t.main_text.toLowerCase() === v.main_text.toLowerCase()) === i
-            );
-            setSuggestions(unique.slice(0, 6));
+            const combined = [...mappedData, ...localMatches];
+            setSuggestions(combined.slice(0, 5));
             setShowDropdown(true);
           }
         })
@@ -160,37 +151,34 @@ export default function Header({
     const cleanName = item.main_text || item.display_name.split(',')[0];
     setQuery(cleanName);
     setShowDropdown(false);
-    sessionTokenRef.current = null;
 
-    // If Google Place ID or generated place, resolve via Geocoder
-    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
-      const geocoder = new window.google.maps.Geocoder();
-      const geocodeTarget = item.isGooglePlace && !String(item.place_id).startsWith('search_')
-        ? { placeId: String(item.place_id) }
-        : {
-            address: `${cleanName}, Bengaluru, Karnataka`,
-            bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
-          };
-
-      geocoder.geocode(geocodeTarget, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location;
-          if (onSearchQuery) {
-            onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
-          }
-        } else if (onSearchQuery) {
-          onSearchQuery(cleanName);
-        }
-      });
+    if (item.lat && item.lng && onSearchQuery) {
+      onSearchQuery(cleanName, { lat: item.lat, lng: item.lng });
       return;
     }
 
-    if (item.lat && item.lon && onSearchQuery) {
-      onSearchQuery(cleanName, {
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon)
-      });
-    } else if (onSearchQuery) {
+    if (typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Geocoder) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode(
+        {
+          address: `${cleanName}, Bengaluru, Karnataka`,
+          bounds: { north: 13.2500, south: 12.7000, east: 77.8500, west: 77.3500 }
+        },
+        (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const loc = results[0].geometry.location;
+            if (onSearchQuery) {
+              onSearchQuery(cleanName, { lat: loc.lat(), lng: loc.lng() });
+            }
+          } else if (onSearchQuery) {
+            onSearchQuery(cleanName);
+          }
+        }
+      );
+      return;
+    }
+
+    if (onSearchQuery) {
       onSearchQuery(cleanName);
     }
   };
@@ -207,7 +195,6 @@ export default function Header({
     setQuery('');
     setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
     setShowDropdown(false);
-    sessionTokenRef.current = null;
     if (onSearchQuery) {
       onSearchQuery('');
     }
@@ -215,26 +202,50 @@ export default function Header({
 
   return (
     <header className="w-full flex-shrink-0 z-30 shadow-2xs bg-white">
-      {/* Compact Responsive Navbar */}
-      <div className="px-3 sm:px-6 py-2 border-b border-slate-100 flex items-center justify-between gap-2 max-w-7xl mx-auto">
-        {/* Brand Logo - ApnaGhar / Living Spaces */}
-        <div className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-500 text-white flex items-center justify-center font-black text-lg shadow-sm shadow-brand-500/20">
-            <Home className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </div>
-          <div>
-            <div className="flex items-baseline">
-              <span className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">ApnaGhar</span>
+      {/* Mobile-Friendly Full-Width Search Header */}
+      <div className="px-3 sm:px-6 py-2.5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2.5 max-w-7xl mx-auto">
+        <div className="w-full sm:w-auto flex items-center justify-between">
+          {/* Brand Logo */}
+          <div className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-500 text-white flex items-center justify-center font-black text-lg shadow-sm shadow-brand-500/20">
+              <Home className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <p className="text-[8px] sm:text-[9px] text-brand-500 font-extrabold -mt-1 tracking-wider uppercase">Living Spaces</p>
+            <div>
+              <div className="flex items-baseline">
+                <span className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">ApnaGhar</span>
+              </div>
+              <p className="text-[8px] sm:text-[9px] text-brand-500 font-extrabold -mt-1 tracking-wider uppercase">Living Spaces</p>
+            </div>
+          </div>
+
+          {/* Right Actions for Mobile view */}
+          <div className="flex sm:hidden items-center gap-1.5">
+            {isAdmin && (
+              <button
+                onClick={onOpenDrafts}
+                className="bg-amber-50 text-amber-700 font-bold text-xs px-2.5 py-1.5 rounded-full flex items-center gap-1 border border-amber-200"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>{draftsCount}</span>
+              </button>
+            )}
+            {isAdmin ? (
+              <button onClick={onLogout} className="bg-emerald-50 text-emerald-700 font-extrabold text-xs px-3 py-1.5 rounded-full">
+                Admin
+              </button>
+            ) : (
+              <button onClick={onOpenLoginModal} className="bg-brand-500 text-white font-extrabold text-xs px-3 py-1.5 rounded-full">
+                Log In
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Compact Floating Pill Search Bar */}
-        <div ref={dropdownRef} className="flex-1 max-w-md mx-1 relative">
+        {/* Full-Width Mobile-Friendly Search Bar */}
+        <div ref={dropdownRef} className="w-full sm:flex-1 sm:max-w-xl mx-0 relative">
           <div className="relative w-full">
-            <div className="flex items-center bg-white border border-slate-300 rounded-full px-3 py-1.5 shadow-2xs hover:border-slate-400 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all">
-              <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 flex-shrink-0" />
+            <div className="flex items-center bg-slate-50 sm:bg-white border border-slate-300 rounded-full px-4 py-2 sm:py-1.5 shadow-2xs hover:border-slate-400 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all w-full">
+              <Search className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <input
                   type="text"
@@ -252,18 +263,17 @@ export default function Header({
                     }
                   }}
                   onFocus={() => {
-                    getOrCreateSessionToken();
                     if (suggestions.length === 0) setSuggestions(POPULAR_BENGALURU_LOCATIONS.slice(0, 5));
                     setShowDropdown(true);
                   }}
-                  placeholder="Where to? Search house, landmark, building..."
-                  className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-500 truncate"
+                  placeholder="Where to? Search house, landmark, area..."
+                  className="w-full text-xs sm:text-sm font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-slate-400 truncate"
                 />
               </div>
 
               {query ? (
-                <button onClick={handleClear} className="p-0.5 text-slate-400 hover:text-slate-600 rounded-full ml-1">
-                  <X className="w-3 h-3" />
+                <button onClick={handleClear} className="p-1 text-slate-400 hover:text-slate-600 rounded-full ml-1">
+                  <X className="w-3.5 h-3.5" />
                 </button>
               ) : (
                 <button
@@ -278,9 +288,9 @@ export default function Header({
                       });
                     }
                   }}
-                  className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0 cursor-pointer"
+                  className="w-7 h-7 bg-black text-white rounded-full flex items-center justify-center ml-1 flex-shrink-0 cursor-pointer"
                 >
-                  <Search className="w-3 h-3" />
+                  <Search className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -305,11 +315,11 @@ export default function Header({
                   >
                     <MapPin className="w-4 h-4 text-slate-400 group-hover:text-brand-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-900 group-hover:text-brand-600 truncate">
+                      <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-brand-600 truncate">
                         {item.main_text || item.display_name.split(',')[0]}
                       </p>
                       {item.secondary_text && (
-                        <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                        <p className="text-[10px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
                           {item.secondary_text}
                         </p>
                       )}
@@ -321,24 +331,22 @@ export default function Header({
           )}
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Drafts Queue - Visible ONLY to Admin */}
+        {/* Desktop Right Actions */}
+        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
           {isAdmin && (
             <button
               onClick={onOpenDrafts}
-              className="hidden sm:flex bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-xs px-3 py-1.5 rounded-full items-center gap-1 transition-all border border-amber-200"
+              className="bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 transition-all border border-amber-200"
             >
-              <PlusCircle className="w-3.5 h-3.5 text-amber-600" />
+              <PlusCircle className="w-4 h-4 text-amber-600" />
               <span>Drafts ({draftsCount})</span>
             </button>
           )}
 
-          {/* Login / Admin Status Action */}
           {isAdmin ? (
-            <div className="flex items-center gap-1">
-              <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-[11px] px-3 py-1.5 rounded-full flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <div className="flex items-center gap-1.5">
+              <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-xs px-3.5 py-2 rounded-full flex items-center gap-1">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Admin</span>
               </span>
               <button
@@ -352,9 +360,9 @@ export default function Header({
           ) : (
             <button
               onClick={onOpenLoginModal}
-              className="bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full flex items-center gap-1 shadow-2xs transition-all"
+              className="bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 shadow-2xs transition-all"
             >
-              <User className="w-3.5 h-3.5" />
+              <User className="w-4 h-4" />
               <span>Log In</span>
             </button>
           )}
