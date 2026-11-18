@@ -32,14 +32,14 @@ fi
 
 HOME_BASE="/home/$DEPLOY_USER"
 
-# 1. Update System Packages & Prerequisites
+# 1. Update System Packages & Prerequisites (Handling Amazon Linux curl-minimal conflicts)
 echo "📦 [1/8] Updating system packages & installing build essentials..."
 if [ "$OS_TYPE" = "ubuntu" ]; then
     sudo apt update && sudo apt upgrade -y
     sudo apt install -y git curl wget unzip build-essential nginx net-tools fuser
 else
-    sudo $PKG_MGR update -y --allowerasing || true
-    sudo $PKG_MGR install -y --allowerasing git wget unzip gcc gcc-c++ make nginx || true
+    sudo $PKG_MGR update -y --allowerasing --skip-broken || true
+    sudo $PKG_MGR install -y --allowerasing --skip-broken git wget unzip gcc gcc-c++ make nginx || true
 fi
 
 # 2. Configure 2GB Swap Memory (Prevents OOM Out-Of-Memory Kills)
@@ -61,7 +61,7 @@ if ! command -v docker &> /dev/null; then
         sudo sh get-docker.sh
         rm get-docker.sh
     else
-        sudo $PKG_MGR install -y --allowerasing docker
+        sudo $PKG_MGR install -y --allowerasing --skip-broken docker || true
     fi
 fi
 
@@ -76,7 +76,7 @@ if ! command -v node &> /dev/null; then
     if [ "$OS_TYPE" = "ubuntu" ]; then
         sudo apt install -y nodejs
     else
-        sudo $PKG_MGR install -y --allowerasing nodejs
+        sudo $PKG_MGR install -y --allowerasing --skip-broken nodejs || true
     fi
 fi
 sudo npm install -g pm2
