@@ -32,7 +32,7 @@ fi
 
 HOME_BASE="/home/$DEPLOY_USER"
 
-# 1. Update System Packages & Prerequisites (Handling Amazon Linux curl-minimal conflicts)
+# 1. Update System Packages & Prerequisites
 echo "📦 [1/8] Updating system packages & installing build essentials..."
 if [ "$OS_TYPE" = "ubuntu" ]; then
     sudo apt update && sudo apt upgrade -y
@@ -53,8 +53,8 @@ if [ ! -f /swapfile ]; then
     echo "  -> 2GB Swap file active!"
 fi
 
-# 3. Install Official Docker & Docker Compose
-echo "🐳 [3/8] Installing Docker Engine..."
+# 3. Install Official Docker & Standalone Docker Compose Binary
+echo "🐳 [3/8] Installing Docker Engine & Standalone Docker Compose..."
 if ! command -v docker &> /dev/null; then
     if [ "$OS_TYPE" = "ubuntu" ]; then
         curl -fsSL https://get.docker.com -o get-docker.sh
@@ -68,6 +68,11 @@ fi
 sudo usermod -aG docker $DEPLOY_USER || true
 sudo systemctl enable docker
 sudo systemctl start docker
+
+# Install Standalone Docker Compose Binary and symlink to /usr/bin
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # 4. Install Node.js 20 LTS & PM2
 echo "🟢 [4/8] Installing Node.js 20 LTS & PM2..."
@@ -109,7 +114,7 @@ TELEGRAM_CHAT_ID="-5471118807"
 TELEGRAM_LOCAL_API_SERVER="https://api.telegram.org"
 EOF
 
-sudo docker compose up -d --build --force-recreate || sudo docker-compose up -d --build --force-recreate
+sudo /usr/local/bin/docker-compose up -d --build --force-recreate
 
 # 7. Configure & Build Next.js Web Dashboard
 echo "⚡ [7/8] Building Next.js Web Dashboard..."
@@ -126,7 +131,7 @@ pm2 save
 echo "🌐 [8/8] Configuring Nginx Reverse Proxy..."
 sudo chmod -R 755 $PROJECT_DIR/web
 
-cat << EOF | sudo tee /etc/nginx/sites-available/default /etc/nginx/conf.d/default.conf
+cat << EOF | sudo tee /etc/nginx/conf.d/default.conf
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
