@@ -336,11 +336,8 @@ export default function DashboardPage(): React.JSX.Element {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-brand-500 font-extrabold text-[9px] uppercase tracking-wider bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
-                    OUR BUILDINGS
-                  </span>
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
-                    {searchQuery ? `Properties near "${searchQuery}"` : 'Prime locations across Bengaluru'} ({filteredListings.length})
+                  <h2 className="text-xs sm:text-sm font-extrabold text-slate-600 uppercase tracking-wider">
+                    {searchQuery ? `Active properties near "${searchQuery}"` : 'Active properties'} ({filteredListings.length})
                   </h2>
                 </div>
 
@@ -455,7 +452,7 @@ export default function DashboardPage(): React.JSX.Element {
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Properties Near Searched Pin ({filteredListings.length})
+                    Active properties near searched pin ({filteredListings.length})
                   </h3>
 
                   {isAdmin && (
