@@ -12,10 +12,25 @@ import DraftCompletionForm from '@/components/DraftCompletionForm';
 import AgentChatDrawer from '@/components/AgentChatDrawer';
 import FilterBottomSheet, { FilterState } from '@/components/FilterBottomSheet';
 import LoginModal from '@/components/LoginModal';
-import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot, SlidersHorizontal } from 'lucide-react';
+import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot, SlidersHorizontal, Navigation } from 'lucide-react';
 
 const SPEC_KEYWORDS = ['bhk', 'villa', 'studio', 'apartment', 'house', 'penthouse'];
 const ITEMS_PER_PAGE = 6;
+
+// Haversine Distance Formula in Kilometers
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
@@ -98,24 +113,26 @@ export default function DashboardPage(): React.JSX.Element {
     }
   };
 
-  const handleCreateListingAtCoords = (coords: { lat: number; lng: number }) => {
+  const handleCreateListingAtCoords = (coords?: { lat: number; lng: number } | null) => {
     if (!isAdmin) return;
+
+    const targetCoords = coords || selectedCoords || mapCenter || { lat: 12.9716, lng: 77.5946 };
 
     const newDraftStub: Listing = {
       id: `draft_${Date.now()}`,
       status: 'draft',
       configuration: '2 BHK Apartment',
       rent_amount: 25000,
-      latitude: coords.lat,
-      longitude: coords.lng,
-      description: 'Spacious modern apartment with modular kitchen and power backup.',
-      admin_notes: 'Created by Admin on Map Pin.',
+      latitude: targetCoords.lat,
+      longitude: targetCoords.lng,
+      description: `Spacious modern apartment located at searched pin (${targetCoords.lat.toFixed(4)}, ${targetCoords.lng.toFixed(4)}).`,
+      admin_notes: 'Created by Admin via Searched Map Pin.',
       media_files: [],
       created_at: new Date().toISOString()
     };
 
     setSelectedDraft(newDraftStub);
-    setSelectedCoords(coords);
+    setSelectedCoords(targetCoords);
   };
 
   const handleCompleteDraft = async (payload: DraftUpdatePayload) => {
@@ -148,6 +165,7 @@ export default function DashboardPage(): React.JSX.Element {
 
     if (!query.trim()) {
       setMapCenter(null);
+      setSelectedCoords(null);
       return;
     }
 
@@ -199,35 +217,44 @@ export default function DashboardPage(): React.JSX.Element {
     }
   };
 
-  // Filter active listings by search query and FilterState
-  const filteredListings = activeListings.filter((item) => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const isSpecQuery = SPEC_KEYWORDS.some((kw) => q.includes(kw));
-
-      if (isSpecQuery) {
-        const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
-        const descMatch = item.description?.toLowerCase().includes(q) ?? false;
-        if (!configMatch && !descMatch) return false;
+  // Filter active listings by search query and FilterState + sort by proximity to mapCenter/selectedCoords
+  const filteredListings = activeListings
+    .map((item) => {
+      let distance = 999;
+      if (selectedCoords && item.latitude && item.longitude) {
+        distance = calculateDistanceKm(selectedCoords.lat, selectedCoords.lng, Number(item.latitude), Number(item.longitude));
       }
-    }
+      return { ...item, distanceKm: distance };
+    })
+    .filter((item) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const isSpecQuery = SPEC_KEYWORDS.some((kw) => q.includes(kw));
 
-    if (filterState.minPrice !== '' && item.rent_amount && item.rent_amount < Number(filterState.minPrice)) {
-      return false;
-    }
-    if (filterState.maxPrice !== '' && item.rent_amount && item.rent_amount > Number(filterState.maxPrice)) {
-      return false;
-    }
+        if (isSpecQuery) {
+          const configMatch = item.configuration?.toLowerCase().includes(q) ?? false;
+          const descMatch = item.description?.toLowerCase().includes(q) ?? false;
+          if (!configMatch && !descMatch) return false;
+        }
+      }
 
-    if (filterState.propertyType !== 'All Types' && item.configuration) {
-      const prefix = filterState.propertyType.split(' ')[0].toLowerCase();
-      if (!item.configuration.toLowerCase().includes(prefix)) {
+      if (filterState.minPrice !== '' && item.rent_amount && item.rent_amount < Number(filterState.minPrice)) {
         return false;
       }
-    }
+      if (filterState.maxPrice !== '' && item.rent_amount && item.rent_amount > Number(filterState.maxPrice)) {
+        return false;
+      }
 
-    return true;
-  });
+      if (filterState.propertyType !== 'All Types' && item.configuration) {
+        const prefix = filterState.propertyType.split(' ')[0].toLowerCase();
+        if (!item.configuration.toLowerCase().includes(prefix)) {
+          return false;
+        }
+      }
+
+      return true;
+    })
+    .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
 
   // Pagination Calculations
   const totalPages = Math.ceil(filteredListings.length / ITEMS_PER_PAGE) || 1;
@@ -313,7 +340,7 @@ export default function DashboardPage(): React.JSX.Element {
                     OUR BUILDINGS
                   </span>
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
-                    Prime locations across Bengaluru ({filteredListings.length} total)
+                    {searchQuery ? `Properties near "${searchQuery}"` : 'Prime locations across Bengaluru'} ({filteredListings.length})
                   </h2>
                 </div>
 
@@ -426,9 +453,22 @@ export default function DashboardPage(): React.JSX.Element {
 
               {/* Compact Property Grid below map when in Map View Mode */}
               <div className="pt-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
-                  Properties in View ({filteredListings.length})
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Properties Near Searched Pin ({filteredListings.length})
+                  </h3>
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleCreateListingAtCoords()}
+                      className="bg-slate-900 text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-1"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>+ Add Property at Searched Pin</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {filteredListings.slice(0, 6).map((listing) => (
                     <PropertyCard key={listing.id} listing={listing} onSelect={handleSelectProperty} />
