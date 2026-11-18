@@ -168,7 +168,7 @@ EOF
 
 sudo systemctl enable nginx || true
 sudo nginx -t || true
-sudo systemctl reload nginx || sudo systemctl restart nginx
+sudo systemctl start nginx || sudo systemctl restart nginx
 
 echo ""
 echo "=============================================================================="
