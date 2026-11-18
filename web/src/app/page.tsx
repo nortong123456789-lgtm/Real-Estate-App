@@ -15,6 +15,7 @@ import LoginModal from '@/components/LoginModal';
 import { RefreshCw, MapPin, PlusCircle, Building, Search, Home as HomeIcon, User, Sparkles, ChevronLeft, ChevronRight, Bot, SlidersHorizontal } from 'lucide-react';
 
 const SPEC_KEYWORDS = ['bhk', 'villa', 'studio', 'apartment', 'house', 'penthouse'];
+const ITEMS_PER_PAGE = 6;
 
 export default function DashboardPage(): React.JSX.Element {
   const [drafts, setDrafts] = useState<Listing[]>([]);
@@ -25,6 +26,7 @@ export default function DashboardPage(): React.JSX.Element {
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Authentication & Role State
   const [isAdmin, setIsAdmin] = useState(false);
@@ -136,6 +138,7 @@ export default function DashboardPage(): React.JSX.Element {
   // Handle Global Search & Map Re-centering with Google Geocoder Priority
   const handleSearchQuery = async (query: string, coords?: { lat: number; lng: number }) => {
     setSearchQuery(query);
+    setCurrentPage(1);
 
     if (coords) {
       setMapCenter(coords);
@@ -226,6 +229,13 @@ export default function DashboardPage(): React.JSX.Element {
     return true;
   });
 
+  // Pagination Calculations
+  const totalPages = Math.ceil(filteredListings.length / ITEMS_PER_PAGE) || 1;
+  const paginatedListings = filteredListings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const hasActiveFilters =
     filterState.minPrice !== '' ||
     filterState.maxPrice !== '' ||
@@ -289,21 +299,21 @@ export default function DashboardPage(): React.JSX.Element {
           </div>
         )}
 
-        {/* Right Column: Main Content (Listings Grid OR Vector Map) */}
+        {/* Right Column: Main Content (Vertical Scrolling Grid with Pagination OR Vector Map) */}
         <div
           className="flex-1 flex flex-col min-h-[480px] w-full"
           style={{ width: '100%', minHeight: '480px' }}
         >
           {currentView === 'properties' ? (
-            /* Horizontal Swipeable Property Carousel View */
-            <div className="space-y-3 relative">
+            /* Vertical Scrolling Grid with Pagination */
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-brand-500 font-extrabold text-[9px] uppercase tracking-wider bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
                     OUR BUILDINGS
                   </span>
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
-                    Prime locations across Bengaluru
+                    Prime locations across Bengaluru ({filteredListings.length} total)
                   </h2>
                 </div>
 
@@ -349,52 +359,49 @@ export default function DashboardPage(): React.JSX.Element {
                   </p>
                 </div>
               ) : (
-                <div className="relative group">
-                  {/* Arrow Navigation Buttons (Desktop) */}
-                  {filteredListings.length > 1 && (
-                    <div className="hidden sm:flex items-center gap-1.5 absolute -top-10 right-0 z-10">
+                <>
+                  {/* Vertical Scrolling Grid (1 col mobile, 2 col sm, 3 col lg) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+                    {paginatedListings.map((listing) => (
+                      <PropertyCard
+                        key={listing.id}
+                        listing={listing}
+                        onSelect={handleSelectProperty}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 pb-2 border-t border-slate-200">
                       <button
-                        onClick={() => {
-                          const container = document.getElementById('property-carousel-container');
-                          if (container) container.scrollBy({ left: -320, behavior: 'smooth' });
-                        }}
-                        className="p-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-2xs transition-all"
-                        title="Previous Property"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 bg-white border border-slate-200 disabled:opacity-40 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1"
                       >
                         <ChevronLeft className="w-4 h-4" />
+                        <span>Previous</span>
                       </button>
+
+                      <div className="text-xs font-extrabold text-slate-600">
+                        Page {currentPage} of {totalPages}
+                      </div>
+
                       <button
-                        onClick={() => {
-                          const container = document.getElementById('property-carousel-container');
-                          if (container) container.scrollBy({ left: 320, behavior: 'smooth' });
-                        }}
-                        className="p-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-brand-500 hover:text-white rounded-full shadow-2xs transition-all"
-                        title="Next Property"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 bg-white border border-slate-200 disabled:opacity-40 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1"
                       >
+                        <span>Next</span>
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
                   )}
-
-                  {/* Swipeable Horizontal Property Carousel */}
-                  <div
-                    id="property-carousel-container"
-                    className="flex gap-3.5 sm:gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-3 pt-1 px-0.5 scroll-smooth"
-                  >
-                    {filteredListings.map((listing) => (
-                      <div key={listing.id} className="w-[82vw] sm:w-[300px] md:w-[330px] flex-shrink-0 snap-start">
-                        <PropertyCard
-                          listing={listing}
-                          onSelect={handleSelectProperty}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                </>
               )}
             </div>
           ) : currentView === 'map' ? (
-            /* Vector Map View - Explicit Height for Mobile Viewports */
+            /* Vector Map View */
             <div className="flex flex-col gap-4 w-full h-full min-h-[500px]">
               <div
                 className="w-full h-[60vh] min-h-[420px] sm:min-h-[520px] relative rounded-2xl md:rounded-3xl overflow-hidden shadow-md"
@@ -417,16 +424,14 @@ export default function DashboardPage(): React.JSX.Element {
                 />
               </div>
 
-              {/* Property Carousel directly below map when in Map View Mode */}
+              {/* Compact Property Grid below map when in Map View Mode */}
               <div className="pt-2">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
                   Properties in View ({filteredListings.length})
                 </h3>
-                <div className="flex gap-3.5 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-2">
-                  {filteredListings.map((listing) => (
-                    <div key={listing.id} className="w-[78vw] sm:w-[280px] flex-shrink-0 snap-start">
-                      <PropertyCard listing={listing} onSelect={handleSelectProperty} />
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredListings.slice(0, 6).map((listing) => (
+                    <PropertyCard key={listing.id} listing={listing} onSelect={handleSelectProperty} />
                   ))}
                 </div>
               </div>
