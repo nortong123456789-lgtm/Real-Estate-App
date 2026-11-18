@@ -5,9 +5,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #FBFBFA;
-  --foreground: #1A1918;
-  --brand-primary: #9A6B53; /* Refined Warm Bronze / Terracotta */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --brand-primary: #4F46E5; /* Vibrant Modern Indigo */
 }
 
 body {
@@ -42,15 +42,15 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F1EF;
+  background: #F1F5F9;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D1D1CB;
+  background: #CBD5E1;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #A3A39D;
+  background: #94A3B8;
 }
